@@ -283,6 +283,12 @@ h1,h2,h3,p{margin:0}
 .matrow input,.matrow select{min-height:46px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:15px;width:100%}
 .matrow .rbtn{width:40px;height:46px;border-radius:12px}
 @media (max-width:520px){.matrow{grid-template-columns:minmax(0,1fr) 96px 40px}.matrow .mr-price{grid-column:1/3}}
+.grplink{border:0;background:none;color:var(--ink2);font:500 13px var(--font);text-decoration:underline;text-underline-offset:3px;padding:0;text-align:left;margin:-6px 0 12px}
+.grpbox{margin:0 0 12px;padding:12px;border:1px dashed var(--line);border-radius:12px;background:var(--surface2);display:grid;gap:10px}
+.grpbox input[type=text]{min-height:46px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:15px;width:100%}
+.grpbox .grprow{display:grid;grid-template-columns:52px 1fr 1fr;gap:8px}
+.grpbox input[type=color]{width:100%;min-width:52px;height:46px;padding:3px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.grpbox .btn{min-height:46px;font-size:14px;padding:0 10px}
 .sumline{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);margin-bottom:8px}
 .sumline span{font-weight:500;color:var(--ink2);font-size:13px}
 .sumline b{font:400 26px/1 var(--display);letter-spacing:-.01em;color:var(--ink)}
@@ -471,6 +477,23 @@ h1,h2,h3,p{margin:0}
 const SEED={shatam:[]};
 
 const GROUPS={raw:'--sand',metal:'--steel',oil:'--oil'};
+const BASE_GROUPS=['raw','metal','oil'];
+const GRP_COLORS=['#8a8a93','#55555c','#c2c2c9','#3a3a40','#a5a5ad'];
+function groupList(){return BASE_GROUPS.concat(((D&&D.groups)||[]).map(x=>x.id))}
+function gname(g){
+  const c=((D&&D.groups)||[]).find(x=>x&&x.id===g);
+  if(c&&c.name)return c.name;
+  return t('g.'+g);
+}
+function groupOptions(sel){
+  return groupList().map(g=>`<option value="${g}" ${g===sel?'selected':''}>${esc(gname(g))}</option>`).join('');
+}
+function normGroup(v){
+  const g=String(v||'').trim();
+  if(BASE_GROUPS.includes(g))return g;
+  if(((D&&D.groups)||[]).some(x=>x&&x.id===g))return g;
+  return 'raw';
+}
 const UNITS={m3:{ru:'м³',kz:'м³'},t:{ru:'т',kz:'т'},kg:{ru:'кг',kz:'кг'},sheet:{ru:'лист',kz:'парақ'},l:{ru:'л',kz:'л'},pcs:{ru:'шт',kz:'дана'},m:{ru:'м',kz:'м'},m2:{ru:'м²',kz:'м²'},bag:{ru:'мешок',kz:'қап'},pack:{ru:'упак.',kz:'қаптама'},roll:{ru:'рулон',kz:'орам'}};
 const BASE_MATERIALS=[];
 const BASE_SUPPLIERS=[];
@@ -485,6 +508,12 @@ function rebuildCatalog(){
   Object.keys(SUP).forEach(k=>delete SUP[k]);
   MATERIALS.forEach(m=>MAT[m.id]=m);
   SUPPLIERS.forEach(s=>SUP[s.id]=s);
+  Object.keys(GROUPS).forEach(k=>{if(!BASE_GROUPS.includes(k))delete GROUPS[k]});
+  ((D&&D.groups)||[]).forEach(gr=>{
+    if(!gr||!gr.id)return;
+    GROUPS[gr.id]='--g-'+gr.id;
+    try{document.documentElement.style.setProperty('--g-'+gr.id,isHex(gr.color||'')?gr.color:'#8a8a93')}catch(e){}
+  });
 }
 MATERIALS.push(...BASE_MATERIALS);
 SUPPLIERS.push(...BASE_SUPPLIERS);
@@ -514,7 +543,7 @@ ru:{
 'd.oddOnly':'Показаны нетипичные объёмы','d.hide':'Скрыть',
 'p.title':'Оплаты','p.total':'Всего оплачено','p.after':'Остаток после: {v}','p.transfer':'Перевод','p.cash':'Наличные','p.mismatch':'Дата в примечании не совпадает',
 's.title':'Поставщики','s.materials':'Материалы','s.history':'Последние оплаты','s.noPay':'Оплат пока нет','s.call':'Позвонить','s.demoNote':'Тестовые данные','s.qty':'Кол-во','s.sum':'Сумма',
-'s.add':'Добавить поставщика','s.newSup':'Новый поставщик','s.editSup':'Изменить поставщика','s.edit':'Изменить','s.delete':'Удалить','s.select':'Выбрать','s.main':'Основной',
+'s.add':'Добавить поставщика','s.newSup':'Новый поставщик','s.editSup':'Изменить поставщика','s.edit':'Изменить','s.delete':'Удалить','s.select':'Выбрать','s.main':'Основной','s.newGroup':'Создать группу','s.groupName':'Название группы','s.groupColor':'Цвет группы','s.grpErr':'Укажите название группы',
 's.selOn':'«{n}» — основной поставщик для новых документов','s.selOff':'Выбор основного поставщика снят',
 's.hasRecords':'Нельзя удалить: у поставщика есть поставки или оплаты','s.matUsed':'Материал «{n}» есть в поставках — его нельзя удалить','s.name':'Название','s.group':'Группа','s.phone':'Телефон','s.price':'Цена, ₸','s.addMat':'Добавить материал','s.matDel':'Удалить материал',
 's.nameErr':'Укажите название поставщика и материалов','s.matsErr':'Добавьте хотя бы один материал с названием и ценой',
@@ -575,7 +604,7 @@ kz:{
 'd.oddOnly':'Ерекше көлемдер көрсетілген','d.hide':'Жасыру',
 'p.title':'Төлемдер','p.total':'Барлығы төленді','p.after':'Одан кейінгі қалдық: {v}','p.transfer':'Аударым','p.cash':'Қолма-қол','p.mismatch':'Ескертпедегі күн сәйкес емес',
 's.title':'Жеткізушілер','s.materials':'Материалдар','s.history':'Соңғы төлемдер','s.noPay':'Төлемдер әлі жоқ','s.call':'Қоңырау шалу','s.demoNote':'Сынақ деректері','s.qty':'Мөлшері','s.sum':'Сомасы',
-'s.add':'Жеткізуші қосу','s.newSup':'Жаңа жеткізуші','s.editSup':'Жеткізушіні өзгерту','s.edit':'Өзгерту','s.delete':'Жою','s.select':'Таңдау','s.main':'Негізгі',
+'s.add':'Жеткізуші қосу','s.newSup':'Жаңа жеткізуші','s.editSup':'Жеткізушіні өзгерту','s.edit':'Өзгерту','s.delete':'Жою','s.select':'Таңдау','s.main':'Негізгі','s.newGroup':'Топ құру','s.groupName':'Топ атауы','s.groupColor':'Топ түсі','s.grpErr':'Топ атауын көрсетіңіз',
 's.selOn':'«{n}» — жаңа құжаттар үшін негізгі жеткізуші','s.selOff':'Негізгі жеткізуші таңдауы алынды',
 's.hasRecords':'Жою мүмкін емес: жеткізушіде жеткізулер немесе төлемдер бар','s.matUsed':'«{n}» материалы жеткізулерде бар — оны жоюға болмайды','s.name':'Атауы','s.group':'Тобы','s.phone':'Телефон','s.price':'Бағасы, ₸','s.addMat':'Материал қосу','s.matDel':'Материалды жою',
 's.nameErr':'Жеткізуші мен материал атауын көрсетіңіз','s.matsErr':'Атауы мен бағасы бар кем дегенде бір материал қосыңыз',
@@ -716,11 +745,11 @@ const num=v=>{const x=parseFloat(String(v==null?'':v).replace(/[\s\u00A0]/g,'').
 /* ================= данные приложения ================= */
 let D;
 function seedData(){
-  return {deliveries:[],payments:[],log:[],supps:[],mats:[]};
+  return {deliveries:[],payments:[],log:[],supps:[],mats:[],groups:[]};
 }
 function load(){
   const raw=store.get('snab-demo-v2');
-  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[]}catch(e){D=seedData()}}
+  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[];if(!D.groups)D.groups=[]}catch(e){D=seedData()}}
   else D=seedData();
   rebuildCatalog();
 }
@@ -836,14 +865,14 @@ function renderView(animate){
 /* ================= главная ================= */
 function supRow(x){
   const s=x.s;
-  return `<button class="srow" data-act="supplier" data-id="${s.id}" style="--gc:var(${GROUPS[s.g]})">
-    <span class="srow-main"><span><b>${esc(s.name)}</b>${s.demo?`<span class="tag">${t('s.demoNote')}</span>`:''}${P.defSup===s.id?`<span class="tag">${t('s.main')}</span>`:''}</span><small>${t('g.'+s.g)}</small></span>
+  return `<button class="srow" data-act="supplier" data-id="${s.id}" style="--gc:var(${GROUPS[s.g]||'--sand'})">
+    <span class="srow-main"><span><b>${esc(s.name)}</b>${s.demo?`<span class="tag">${t('s.demoNote')}</span>`:''}${P.defSup===s.id?`<span class="tag">${t('s.main')}</span>`:''}</span><small>${gname(s.g)}</small></span>
     <span class="srow-bal">${x.bal>0?`<b>${money(x.bal)}</b><small>${t('sup.toPay')}</small>`:`<b class="ok">${ic('check')}</b><small>${t('sup.settled')}</small>`}</span>
     <span class="bar"><i style="width:${x.rec?Math.max(0,Math.min(100,x.paid/x.rec*100)):100}%"></i></span></button>`;
 }
 function deliveryItem(d){
   const m=MAT[d.mat],s=SUP[d.sup],time=d.ts.slice(11)==='00:00'?'':', '+d.ts.slice(11);
-  return `<button class="item" data-act="editD" data-id="${d.id}" style="--gc:var(${GROUPS[m.g]})">
+  return `<button class="item" data-act="editD" data-id="${d.id}" style="--gc:var(${GROUPS[m.g]||'--sand'})">
     <span class="dot"></span>
     <span class="item-main"><b>${esc(mname(m))}</b><small>${esc(s.name)}${time}${d.note?', '+esc(d.note):''}</small></span>
     <span class="item-val"><b>${qtyFmt(d.qty)} ${unitOf(m)}</b><small>${money(amt(d))}</small></span></button>`;
@@ -917,10 +946,10 @@ function mountHome(){
 /* ================= поставки ================= */
 function renderDeliveries(){
   const counts={all:D.deliveries.length};
-  ['raw','metal','oil'].forEach(g=>counts[g]=D.deliveries.filter(d=>MAT[d.mat].g===g).length);
+  groupList().forEach(g=>counts[g]=D.deliveries.filter(d=>MAT[d.mat].g===g).length);
   return `<h1 class="title">${t('d.title')}</h1>
     <div class="search">${ic('search')}<input id="q" type="search" value="${esc(S.q)}" placeholder="${t('d.search')}" autocomplete="off" enterkeyhint="search" aria-label="${t('d.search')}"></div>
-    <div class="chips" id="gchips">${['all','raw','metal','oil'].map(g=>`<button class="chip" data-act="grp" data-g="${g}" aria-pressed="${S.group===g}">${t('g.'+g)}<small>${counts[g]}</small></button>`).join('')}</div>
+    <div class="chips" id="gchips">${['all'].concat(groupList()).map(g=>`<button class="chip" data-act="grp" data-g="${g}" aria-pressed="${S.group===g}">${g==='all'?t('g.all'):gname(g)}<small>${counts[g]}</small></button>`).join('')}</div>
     <div class="chips sm" id="pchips">${['all','30','7'].map(p=>`<button class="chip" data-act="per" data-p="${p}" aria-pressed="${S.period===p}">${t('d.p.'+p)}</button>`).join('')}</div>
     <div id="oddNote"></div><div id="dlist"></div>`;
 }
@@ -994,13 +1023,21 @@ function matRowHTML(m){
     <button type="button" class="rbtn" data-act="matDel" aria-label="${esc(t('s.matDel'))}">${ic('close','sm')}</button>
   </div>`;
 }
+function grpBoxHTML(){
+  return `<button type="button" class="grplink" data-act="grpNew">＋ ${t('s.newGroup')}</button>
+    <div class="grpbox" id="grpBox" hidden>
+      <input type="text" id="grpName" maxlength="24" placeholder="${esc(t('s.groupName'))}" autocomplete="off" aria-label="${esc(t('s.groupName'))}">
+      <div class="grprow"><input type="color" id="grpColor" value="${GRP_COLORS[((D&&D.groups)||[]).length%GRP_COLORS.length]}" aria-label="${esc(t('s.groupColor'))}"><button type="button" class="btn primary" data-act="grpSave">${t('f.save')}</button><button type="button" class="btn ghost" data-act="grpCancel">${t('f.cancel')}</button></div>
+    </div>`;
+}
 function supplierForm(){
   openSheet(t('s.newSup'),`<form id="fS" novalidate>
     <label class="fld"><span>${t('s.name')}</span><input name="name" maxlength="40" autocomplete="off"></label>
     <div class="two">
-      <label class="fld"><span>${t('s.group')}</span><select name="g">${['raw','metal','oil'].map(g=>`<option value="${g}">${esc(t('g.'+g))}</option>`).join('')}</select></label>
+      <label class="fld"><span>${t('s.group')}</span><select name="g">${groupOptions('raw')}</select></label>
       <label class="fld"><span>${t('s.phone')}</span><input name="phone" maxlength="24" autocomplete="off" inputmode="tel"></label>
     </div>
+    ${grpBoxHTML()}
     <h3 class="subh">${t('s.materials')}</h3>
     <div id="matRows">${matRowHTML()}${matRowHTML()}</div>
     <button type="button" class="btn" data-act="matAdd" style="width:100%;margin-bottom:6px">${ic('plus','sm')}${t('s.addMat')}</button>
@@ -1031,9 +1068,10 @@ function editSupplierForm(id){
   openSheet(t('s.editSup'),`<form id="fSedit" novalidate>
     <label class="fld"><span>${t('s.name')}</span><input name="name" maxlength="40" autocomplete="off" value="${esc(s.name)}"></label>
     <div class="two">
-      <label class="fld"><span>${t('s.group')}</span><select name="g">${['raw','metal','oil'].map(g=>`<option value="${g}" ${s.g===g?'selected':''}>${esc(t('g.'+g))}</option>`).join('')}</select></label>
+      <label class="fld"><span>${t('s.group')}</span><select name="g">${groupOptions(s.g)}</select></label>
       <label class="fld"><span>${t('s.phone')}</span><input name="phone" maxlength="24" autocomplete="off" inputmode="tel" value="${esc(s.phone||'')}"></label>
     </div>
+    ${grpBoxHTML()}
     <h3 class="subh">${t('s.materials')}</h3>
     <div id="matRows">${mats.length?mats.map(matRowHTML).join(''):matRowHTML()+matRowHTML()}</div>
     <button type="button" class="btn" data-act="matAdd" style="width:100%;margin-bottom:6px">${ic('plus','sm')}${t('s.addMat')}</button>
@@ -1112,7 +1150,7 @@ function supplierSheet(id){
   }).join('');
   const pays=D.payments.filter(p=>p.sup===id).sort(byDesc).slice(0,5);
   openSheet(s.name,`
-    <p class="hintp">${t('g.'+s.g)}${s.demo?', '+t('s.demoNote').toLowerCase():''}</p>
+    <p class="hintp">${gname(s.g)}${s.demo?', '+t('s.demoNote').toLowerCase():''}</p>
     <div class="stat3"><div><span>${t('home.received')}</span><b>${money(x.rec)}</b></div><div><span>${t('home.paid')}</span><b>${money(x.paid)}</b></div><div><span>${t('r.debt')}</span><b>${money(x.bal)}</b></div></div>
     ${s.phone?`<a class="btn" style="text-decoration:none;margin-bottom:6px" href="tel:${esc(s.phone.replace(/\s/g,''))}">${ic('phone','sm')}${t('s.call')}: ${esc(s.phone)}</a>`:''}
     <h3 class="subh">${t('s.materials')}</h3>
@@ -1180,24 +1218,24 @@ function cumChart(){
 }
 function monthChart(){
   const mo={};
-  D.deliveries.forEach(d=>{const k=d.ts.slice(0,7);(mo[k]=mo[k]||{raw:0,metal:0,oil:0})[MAT[d.mat].g]+=amt(d)});
+  D.deliveries.forEach(d=>{const k=d.ts.slice(0,7);const o=mo[k]=mo[k]||{};const gg=MAT[d.mat].g;o[gg]=(o[gg]||0)+amt(d)});
   const keys=Object.keys(mo).sort();
   if(!keys.length)return `<p class="hintp">${t('r.perNone')}</p>`;
   const W=640,H=240,m={l:44,r:10,t:22,b:26};
-  const max=Math.max(1,...keys.map(k=>mo[k].raw+mo[k].metal+mo[k].oil)),sc=niceScale(max);
+  const max=Math.max(1,...keys.map(k=>groupList().reduce((a,g)=>a+(mo[k][g]||0),0))),sc=niceScale(max);
   const y=v=>H-m.b-v/sc.top*(H-m.t-m.b),slot=(W-m.l-m.r)/keys.length,bw=Math.min(74,slot*.56);
   let grid='';
   for(let v=0;v<=sc.top+1;v+=sc.step)grid+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${m.l-6}" y="${(y(v)+4).toFixed(1)}" text-anchor="end">${mln(v)}</text>`;
   let bars='';
   keys.forEach((k,i)=>{
     const cx=m.l+slot*(i+.5);let acc=0;
-    ['raw','metal','oil'].forEach(g=>{const v=mo[k][g];if(!v)return;
-      bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${y(acc+v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(acc)-y(acc+v)).toFixed(1)}" rx="3" fill="var(${GROUPS[g]})"/>`;acc+=v});
+    groupList().forEach(g=>{const v=mo[k][g];if(!v)return;
+      bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${y(acc+v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(acc)-y(acc+v)).toFixed(1)}" rx="3" fill="var(${GROUPS[g]||'--sand'})"/>`;acc+=v});
     bars+=`<text x="${cx.toFixed(1)}" y="${(y(acc)-6).toFixed(1)}" text-anchor="middle" style="fill:var(--ink)">${mln(acc)}</text>`;
     bars+=`<text x="${cx.toFixed(1)}" y="${H-7}" text-anchor="middle">${esc(cap(dtf({month:'long'}).format(new Date(k+'-15T12:00'))))}</text>`;
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('r.monthly')}">${grid}${bars}</svg>
-    <div class="legend">${['raw','metal','oil'].map(g=>`<span><i style="background:var(${GROUPS[g]})"></i>${t('g.'+g)}</span>`).join('')}<span>${t('r.mln')} ₸</span></div>`;
+    <div class="legend">${groupList().map(g=>`<span><i style="background:var(${GROUPS[g]||'--sand'})"></i>${gname(g)}</span>`).join('')}<span>${t('r.mln')} ₸</span></div>`;
 }
 function renderReports(){
   if(!SUP[S.recon.sup])S.recon.sup=SUPPLIERS.length?SUPPLIERS[0].id:'';
@@ -1442,11 +1480,13 @@ function syncPush(quiet){
   const s=D.supps.map(x=>({id:x.id,name:x.name,g:x.g,phone:x.phone||'',demo:!!x.demo}));
   const unitRu={m3:'м³',t:'т',kg:'кг',sheet:'лист',l:'л',pcs:'шт',m:'м',m2:'м²',bag:'мешок',pack:'упак.',roll:'рулон'};
   const m=D.mats.map(x=>({id:x.id,ru:x.ru,kz:x.kz||x.ru,g:x.g,sup:x.sup,unit:unitRu[x.unit]||x.unit,price:x.price}));
+  const gr=(D.groups||[]).map(x=>({id:x.id,name:x.name,color:x.color}));
   return apiCall('syncDeliveries',{deliveries:d})
     .then(()=>apiCall('syncPayments',{payments:p}))
     .then(()=>apiCall('syncSuppliers',{suppliers:s}))
     .then(()=>apiCall('syncMaterials',{materials:m}))
-    .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length}))})
+    .then(()=>apiCall('syncGroups',{groups:gr}))
+    .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}))})
     .catch(e=>{const msg=String(e.message||e);setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
 }
 function syncPull(){
@@ -1455,6 +1495,15 @@ function syncPull(){
   apiCall('getAllData').then(res=>{
     const g=(res&&res.data)||{};
     let n=0;
+    (g.groups||[]).forEach(r=>{
+      const gid=String(r['ID']||'').trim(),gnm=String(r['Название']||'').trim();
+      if(!gid||!gnm)return;
+      let gcol=String(r['Цвет']||'').trim();if(!isHex(gcol))gcol='#8a8a93';
+      D.groups=D.groups||[];
+      const old=D.groups.find(y=>y.id===gid);
+      if(old)Object.assign(old,{name:gnm,color:gcol.toLowerCase()});else D.groups.push({id:gid,name:gnm,color:gcol.toLowerCase()});
+      n++;
+    });
     (g.suppliers||[]).forEach(r=>{
       const x=mapSupplier(r);if(!x)return;
       if(BASE_SUPPLIERS.some(b=>b.id===x.id))return;
@@ -1523,7 +1572,7 @@ function mapPayment(r){
 function mapSupplier(r){
   const id=String(r['ID']||'').trim(),name=String(r['Название']||'').trim();
   if(!id||!name)return null;
-  const g=['raw','metal','oil'].includes(String(r['Группа']))?String(r['Группа']):'raw';
+  const g=normGroup(r['Группа']);
   const dm=r['Демо'];
   return {id,name,g,phone:String(r['Телефон']||''),demo:dm===true||String(dm).toUpperCase()==='TRUE'};
 }
@@ -1531,7 +1580,7 @@ const UNIT_FROM_SHEET={'м³':'m3','м3':'m3','m3':'m3','т':'t','t':'t','кг':
 function mapMaterial(r){
   const id=String(r['ID']||'').trim(),ru=String(r['НазваниеRU']||'').trim();
   if(!id||!ru)return null;
-  const g=['raw','metal','oil'].includes(String(r['Группа']))?String(r['Группа']):'raw';
+  const g=normGroup(r['Группа']);
   const sup=String(r['ПоставщикID']||'').trim();
   const unit=UNIT_FROM_SHEET[String(r['Единица']||'').trim().toLowerCase()]||UNIT_FROM_SHEET[String(r['Единица']||'').trim()]||'m3';
   const price=Math.round(parseFloat(r['Цена'])||0);
@@ -1760,6 +1809,22 @@ const A={
   supEdit(el){editSupplierForm(el.dataset.id)},
   supDel(el){removeSupplier(el.dataset.id)},
   supSelect(el){toggleDefaultSup(el.dataset.id)},
+  grpNew(){const b=$('#grpBox');if(b){b.hidden=false;const i=$('#grpName');if(i)i.focus()}},
+  grpCancel(){const b=$('#grpBox');if(b)b.hidden=true;const i=$('#grpName');if(i)i.value=''},
+  grpSave(){
+    const ni=$('#grpName'),ci=$('#grpColor'),nm=((ni&&ni.value)||'').trim();
+    if(!nm){toast(t('s.grpErr'));if(ni)ni.focus();return}
+    let col=((ci&&ci.value)||'').trim();if(!isHex(col))col='#8a8a93';
+    D.groups=D.groups||[];
+    const id='g'+Date.now().toString(36);
+    D.groups.push({id,name:nm,color:col.toLowerCase()});
+    rebuildCatalog();save();
+    const sel=$('#sheetRoot select[name=g]');
+    if(sel)sel.innerHTML=groupOptions(id);
+    if(ni)ni.value='';const b=$('#grpBox');if(b)b.hidden=true;
+    addLog('add',t('s.group')+': '+nm);
+    toast(t('f.saved'));queuePush();
+  },
   qchip(el){const f=$('#fD');f.elements.qty.value=el.dataset.v;f.elements.qty.dispatchEvent(new Event('input'))},
   grp(el){S.group=el.dataset.g;$$('#gchips .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.g===S.group));fillDeliveries()},
   perQuick(el){
