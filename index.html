@@ -75,9 +75,9 @@ h1,h2,h3,p{margin:0}
 .syncchip.err .ic{color:var(--danger)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
 .seg button{border:0;background:none;height:28px;min-width:40px;padding:0 11px;border-radius:999px;font:500 12px var(--font);color:var(--ink2)}
-.seg button[aria-pressed="true"]{background:var(--violet);color:#fff}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
 .icon-btn{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink2)}
-.icon-btn[aria-pressed="true"]{background:var(--violet);color:#fff;border-color:var(--violet)}
+.icon-btn[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .title{font:500 clamp(22px,5vw,28px)/1.15 var(--display);letter-spacing:-.02em;margin:14px 0 14px}
 
 /* Quick Stats — полоса мини-карточек как в референсе */
@@ -111,7 +111,7 @@ h1,h2,h3,p{margin:0}
 @media (min-width:900px){
   body{background:#a9aab0}
   :root[data-theme="dark"] body{background:#0a0a0d}
-  .shell{display:grid;grid-template-columns:236px minmax(0,1fr);height:calc(100vh - 36px);max-width:1220px;margin:18px auto;overflow:hidden;border-radius:26px;filter:drop-shadow(0 30px 60px rgba(0,0,0,.28))}
+  .shell{display:grid;grid-template-columns:236px minmax(0,1fr);height:calc(100vh - 28px);max-width:1220px;margin:14px auto;overflow:hidden;border-radius:26px;filter:drop-shadow(0 22px 48px rgba(0,0,0,.26))}
   .nav{position:static;grid-column:1;grid-row:1;left:auto;right:auto;bottom:auto;display:flex;flex-direction:column;gap:6px;border-top:0;padding:26px 16px 20px;background:var(--nav-bg);-webkit-backdrop-filter:none;backdrop-filter:none;border-right:1px solid var(--line)}
   .shell>div{background:var(--bg);grid-column:2;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
   .topbar{position:static;flex:none}
@@ -168,7 +168,7 @@ h1,h2,h3,p{margin:0}
 .quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 4px}
 .btn{min-height:50px;padding:0 18px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:500 15px var(--font);display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(20,20,25,.05)}
 .btn.primary{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);box-shadow:0 10px 20px rgba(0,0,0,.22)}
-.btn.violet{background:var(--violet);border-color:var(--violet);color:#fff;box-shadow:0 10px 20px rgba(0,0,0,.18)}
+.btn.violet{background:var(--ink);border-color:var(--ink);color:var(--surface);box-shadow:0 10px 20px rgba(0,0,0,.18)}
 .btn.danger{color:var(--danger)}
 .btn.ghost{background:transparent;box-shadow:none}
 .btn:active{transform:translateY(1px)}
@@ -204,7 +204,7 @@ h1,h2,h3,p{margin:0}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:2px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font:500 13px var(--font);color:var(--ink2);display:inline-flex;align-items:center;gap:7px;box-shadow:0 3px 8px rgba(20,20,25,.04)}
-.chip[aria-pressed="true"]{background:var(--violet);border-color:var(--violet);color:#fff}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
 .chip small{font:500 12px var(--font);opacity:.7}
 .chips.sm .chip{height:32px;font-size:12px}
 .dayhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin:18px 2px 8px}
@@ -301,7 +301,7 @@ h1,h2,h3,p{margin:0}
 .method label{position:relative}
 .method input{position:absolute;opacity:0;inset:0}
 .method span{display:grid;place-items:center;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-weight:500}
-.method input:checked+span{background:var(--violet);color:#fff;border-color:var(--violet)}
+.method input:checked+span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .method input:focus-visible+span{outline:2px solid var(--violet2);outline-offset:2px}
 .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
 .stat3 div{padding:10px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);display:grid;gap:2px}
@@ -435,7 +435,7 @@ h1,h2,h3,p{margin:0}
   <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3.5 7.5h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2zM3.5 7.5l11-3.5v3.5M16 13.5h2.5"/></symbol>
   <symbol id="i-factory" viewBox="0 0 24 24"><path d="M3 20V9.5l6 3.5V9.5l6 3.5V5h3.5v15zM7 20v-3M12 20v-3M17 20v-3"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/></symbol>
-  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 5.5h10.5v13H9l-5.5-6.5zM12.5 9.5l4 5M16.5 9.5l-4 5"/></symbol>
@@ -452,6 +452,8 @@ h1,h2,h3,p{margin:0}
   <symbol id="i-reset" viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.2-5.1M5 4.5v4h4"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6 4h3l1.5 4-2 1.5a10 10 0 0 0 5 5L15 12.5l4 1.5v3a2 2 0 0 1-2 2A13 13 0 0 1 4 6a2 2 0 0 1 2-2z"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
 </svg>
 
 <div class="lock" id="lock" role="dialog" aria-modal="true" aria-label="СНАБ"></div>
@@ -558,7 +560,7 @@ ru:{
 'f.supplier':'Поставщик','f.material':'Материал','f.qty':'Количество','f.price':'Цена за единицу, ₸','f.date':'Дата','f.note':'Примечание','f.amount':'Сумма, ₸','f.method':'Способ',
 'f.sum':'Сумма','f.debtAfter':'Долг после оплаты','f.save':'Сохранить','f.cancel':'Отмена','f.delete':'Удалить',
 'f.qtyErr':'Укажите количество больше нуля','f.amountErr':'Укажите сумму больше нуля','f.priceErr':'Укажите цену','f.saved':'Сохранено','f.deleted':'Удалено','f.undo':'Вернуть','f.addDelivery':'Добавить поставку','f.addPayment':'Добавить оплату',
-'st.title':'Настройки','st.look':'Оформление','st.lang':'Язык','st.theme':'Тема','st.auto':'Авто','st.light':'Светлая','st.dark':'Тёмная',
+'st.title':'Настройки','st.look':'Оформление','st.toggleTheme':'Переключить тему','st.lang':'Язык','st.theme':'Тема','st.auto':'Авто','st.light':'Светлая','st.dark':'Тёмная',
 'st.sync':'Копия в Google Таблице','st.syncDemo':'Демо-режим: данные хранятся только в этом браузере. В рабочей версии каждая запись сразу попадает в вашу Google Таблицу.',
 'st.apiUrl':'URL веб-приложения','st.apiHint':'Вставьте URL веб-приложения из инструкции (шаг 4). Он заканчивается на /exec.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Проверить связь','st.push':'Выгрузить','st.pull':'Загрузить',
@@ -619,7 +621,7 @@ kz:{
 'f.supplier':'Жеткізуші','f.material':'Материал','f.qty':'Мөлшері','f.price':'Бірлік бағасы, ₸','f.date':'Күні','f.note':'Ескертпе','f.amount':'Сомасы, ₸','f.method':'Тәсілі',
 'f.sum':'Сомасы','f.debtAfter':'Төлемнен кейінгі қарыз','f.save':'Сақтау','f.cancel':'Бас тарту','f.delete':'Жою',
 'f.qtyErr':'Мөлшерді нөлден көп етіп көрсетіңіз','f.amountErr':'Соманы нөлден көп етіп көрсетіңіз','f.priceErr':'Бағасын көрсетіңіз','f.saved':'Сақталды','f.deleted':'Жойылды','f.undo':'Қайтару','f.addDelivery':'Жеткізу қосу','f.addPayment':'Төлем қосу',
-'st.title':'Баптаулар','st.look':'Сыртқы түрі','st.lang':'Тіл','st.theme':'Тема','st.auto':'Авто','st.light':'Жарық','st.dark':'Қараңғы',
+'st.title':'Баптаулар','st.look':'Сыртқы түрі','st.toggleTheme':'Тақырыпты ауыстыру','st.lang':'Тіл','st.theme':'Тема','st.auto':'Авто','st.light':'Жарық','st.dark':'Қараңғы',
 'st.sync':'Google Кестедегі көшірме','st.syncDemo':'Демо режимі: деректер тек осы браузерде сақталады. Жұмыс нұсқасында әр жазба бірден Google Кестеңізге түседі.',
 'st.apiUrl':'Веб-қосымша URL','st.apiHint':'Нұсқаулықтан (4-қадам) веб-қосымша URL-ды енгізіңіз. Ол /exec-пен аяқталады.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Байланысты тексеру','st.push':'Жіберу','st.pull':'Жүктеу',
@@ -837,6 +839,7 @@ function renderChrome(){
     ${syncChipHTML()}
     ${langSeg()}
     <button class="icon-btn mobonly" data-act="lockNow" aria-label="${t('nav.exit')}" title="${t('nav.exit')}">${ic('exit')}</button>
+    <button class="icon-btn" data-act="themeToggle" aria-label="${t('st.toggleTheme')}" title="${t('st.toggleTheme')}">${ic(effMode()==='dark'?'sun':'moon')}</button>
     <button class="icon-btn" data-act="nav" data-s="settings" aria-label="${t('nav.settings')}" ${S.screen==='settings'?'aria-pressed="true"':''}>${ic('gear')}</button>`;
   $('#nav').innerHTML=`<div class="nav-brand">${brandHTML()}</div>`+
     NAV.map(([s,i])=>`<button data-act="nav" data-s="${s}" ${S.screen===s?'aria-current="page"':''}><span class="pill">${ic(i)}</span><span class="lbl">${t('nav.'+s)}</span></button>`).join('')+
@@ -1789,6 +1792,7 @@ const A={
   settings(){go('settings')},
   lang(el){setLang(el.dataset.l)},
   theme(el){P.theme=el.dataset.v;savePrefs();applyPrefs();renderView(false)},
+  themeToggle(){P.theme=effMode()==='dark'?'light':'dark';savePrefs();applyPrefs();renderChrome();if(S.screen==='settings')renderView(false)},
   pickLogo(){const i=$('#logoIn');if(i)i.click()},
   logoDel(){P.brand.logo='';savePrefs();renderChrome();renderView(false)},
   preset(el){
