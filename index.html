@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="theme-color" content="#5b21b6"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>СНАБ — учёт поставок (демо)</title>
+<title>SNAB - учет поставок товаров, сырья и материалов</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -317,7 +317,8 @@ h1,h2,h3,p{margin:0}
 .hintp{font:400 13px/1.5 var(--font);color:var(--ink2);margin:6px 0 10px}
 
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:80;display:flex;gap:14px;align-items:center;max-width:min(92vw,460px);padding:12px 16px;border-radius:14px;background:var(--ink);color:var(--bg);font:500 14px var(--font);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s;box-shadow:0 14px 34px rgba(20,20,25,.35)}
-.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.show.act{pointer-events:auto}
 .toast button{border:0;background:none;color:var(--bg);font:500 14px var(--font);padding:4px 2px;text-decoration:underline;text-underline-offset:3px}
 @media (min-width:900px){.toast{bottom:28px}}
 
@@ -426,6 +427,64 @@ h1,h2,h3,p{margin:0}
   .draw{stroke-dashoffset:0}
 }
 
+/* === MOB-ONLY адаптация (десктоп min-width:900px не затрагивается) ===
+   1) В верхней панели: стандартная шестерёнка настроек + рядом кнопка темы (солнце/луна).
+   2) Иконки корректны в светлой/тёмной теме. 3) Fit по ширине/высоте без обрезки и без горизонтального скролла. */
+@media (max-width:899.98px){
+  html,body{max-width:100%;overflow-x:clip}
+  .shell{min-height:100vh;min-height:100dvh}
+  .shell>div{min-width:0;max-width:100vw;overflow-x:clip}
+  /* верхняя панель всегда в одну строку и внутри ширины экрана */
+  .topbar{max-width:100vw;min-width:0;overflow:hidden;gap:8px;padding-left:12px;padding-right:12px}
+  .topbar .brand{min-width:0;flex:0 1 auto}
+  .bname{max-width:30vw}
+  .topbar .grow{flex:1 1 auto;min-width:8px}
+  .topbar .seg{flex:0 0 auto}
+  .topbar .icon-btn{flex:0 0 auto}
+  /* пара кнопок темы и настроек всегда рядом и не схлопываются */
+  .topbar .tbtn-theme,.topbar .tbtn-settings{flex:0 0 auto;order:0}
+  /* иконки наследуют currentColor и используют контрастные vars — видно в обеих темах */
+  .topbar .icon-btn{color:var(--ink2);background:var(--surface);border-color:var(--line)}
+  .topbar .icon-btn .ic{stroke:currentColor;fill:none}
+  .topbar .icon-btn[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+  /* контент не даёт горизонтального скролла страницы */
+  .main{min-width:0;max-width:100vw;overflow-x:clip}
+  .qstats,.hero,.cols,.card,.sumcard,.srow,.item,.notice,.btnrow,.chart,.tbl{min-width:0;max-width:100%}
+  .card{overflow:hidden}
+  .tbl{width:100%;table-layout:auto}
+  .tbl .r{white-space:nowrap}
+  .chart{max-width:100%}
+  .btnrow{flex-wrap:wrap}
+  .btn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* низ не перекрывается навигацией/FAB, учитываем safe-area и dvh */
+  .main{padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}
+  .nav{min-width:0;max-width:100vw}
+  .nav button{min-width:0;overflow:hidden}
+  .fab{max-width:calc(100vw - 36px)}
+  /* листы/формы помещаются по высоте маленьких экранов */
+  .sheet{max-height:calc(92vh - env(safe-area-inset-top,0px));max-height:calc(92dvh - env(safe-area-inset-top,0px))}
+  .sheet-body{overscroll-behavior:contain}
+  .lock-in{padding:20px 14px}
+  .lock-card{max-width:100%;padding-left:22px;padding-right:22px}
+}
+/* очень узкие телефоны: уплотняем только отступы топбара, размеры кнопок 40px не меняем */
+@media (max-width:899.98px) and (max-width:360px){
+  .topbar{gap:6px;padding-left:10px;padding-right:10px}
+  .bname{max-width:24vw}
+  .brand{gap:7px}
+}
+/* низкие экраны (ландшафт): всё помещается по высоте */
+@media (max-width:899.98px) and (max-height:620px){
+  .title{margin:10px 0}
+  .hero{padding:18px 16px}
+  .hero-num{font-size:clamp(36px,9vw,52px)}
+  .qstats{margin-bottom:12px}
+  .lock-in{justify-content:flex-start;padding-top:16px}
+  .lock-card{gap:14px;padding-top:28px;padding-bottom:22px}
+  .keys{grid-template-columns:repeat(3,70px);gap:10px}
+  .keys button{height:54px}
+}
+
 </style>
 </head>
 <body>
@@ -528,12 +587,12 @@ const DEMO_P=[];
 /* ================= тексты ================= */
 const I18N={
 ru:{
-'app.sub':'Учёт поставок для производства ЖБИ','demo':'Демо',
+'app.sub':'Учёт поставок для производства ЖБИ',
 'nav.home':'Главная','nav.deliveries':'Поставки','nav.payments':'Оплаты','nav.suppliers':'Поставщики','nav.reports':'Отчёты',
 'greet.morning':'Доброе утро','greet.day':'Добрый день','greet.evening':'Добрый вечер','greet.night':'Доброй ночи',
 'lock.pin':'Введите код','lock.pass':'Введите пароль','lock.usePass':'Войти по паролю','lock.usePin':'Войти по коду','lock.enter':'Войти',
 'lock.wrongPin':'Неверный код','lock.wrongPass':'Неверный пароль','lock.wait':'Слишком много попыток. Подождите {n} с',
-'lock.hint':'Демо: код 1234, пароль demo','lock.passPh':'Пароль','lock.del':'Стереть',
+'lock.hint':'Код для входа: 1234','lock.passPh':'Пароль','lock.del':'Стереть',
 'home.debt':'Долг поставщикам','home.received':'Получено','home.paid':'Оплачено','home.paidPct':'оплачено {p}%',
 'home.owe':'Кому должны','home.attention':'Требует внимания','home.allGood':'Замечаний нет','home.latest':'Последние поставки','home.all':'Все',
   'home.addDelivery':'Добавить поставку','home.addPayment':'Добавить оплату',
@@ -553,7 +612,7 @@ ru:{
 'r.title':'Отчёты','r.recon':'Сверка на дату','r.supplier':'Поставщик','r.asOf':'На дату','r.received':'Получено','r.paid':'Оплачено','r.balance':'Остаток к оплате',
 'r.period':'Отчёт за период','r.from':'С','r.to':'По','r.allSup':'Все поставщики','r.per7':'7 дней','r.per30':'30 дней','r.perMonth':'Этот месяц',
 'r.perNone':'За период поставок и оплат нет','r.perPick':'Укажите период в календаре','r.perBad':'Дата «С» позже даты «По»',
-'r.copy':'Скопировать','r.print':'Печать','r.copied':'Скопировано','r.copyFail':'Не удалось скопировать','r.printFail':'В демо печать недоступна',
+'r.copy':'Скопировать','r.print':'Печать','r.copied':'Скопировано','r.copyFail':'Не удалось скопировать','r.printFail':'Печать недоступна',
 'r.cum':'Получено и оплачено','r.cumHint':'Расстояние между линиями и есть ваш долг','r.monthly':'Поставки по месяцам','r.act':'Акт сверки','r.mln':'млн','r.total':'Итого','r.debt':'Долг','r.none':'Поставок до этой даты нет','r.on':'На дату',
 'r.sign1':'Поставщик','r.sign2':'Покупатель',
 'f.newDelivery':'Новая поставка','f.editDelivery':'Поставка','f.newPayment':'Новая оплата','f.editPayment':'Оплата',
@@ -561,7 +620,7 @@ ru:{
 'f.sum':'Сумма','f.debtAfter':'Долг после оплаты','f.save':'Сохранить','f.cancel':'Отмена','f.delete':'Удалить',
 'f.qtyErr':'Укажите количество больше нуля','f.amountErr':'Укажите сумму больше нуля','f.priceErr':'Укажите цену','f.saved':'Сохранено','f.deleted':'Удалено','f.undo':'Вернуть','f.addDelivery':'Добавить поставку','f.addPayment':'Добавить оплату',
 'st.title':'Настройки','st.look':'Оформление','st.toggleTheme':'Переключить тему','st.lang':'Язык','st.theme':'Тема','st.auto':'Авто','st.light':'Светлая','st.dark':'Тёмная',
-'st.sync':'Копия в Google Таблице','st.syncDemo':'Демо-режим: данные хранятся только в этом браузере. В рабочей версии каждая запись сразу попадает в вашу Google Таблицу.',
+'st.sync':'Копия в Google Таблице','st.syncDemo':'Данные хранятся только в этом браузере. Когда таблица подключена, каждая запись сразу попадает в вашу Google Таблицу.',
 'st.apiUrl':'URL веб-приложения','st.apiHint':'Вставьте URL веб-приложения из инструкции (шаг 4). Он заканчивается на /exec.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Проверить связь','st.push':'Выгрузить','st.pull':'Загрузить',
 'st.syncOff':'Таблица не подключена','st.syncOn':'Связь с таблицей установлена','st.syncErr':'Ошибка: {e}','st.busy':'Соединение…',
@@ -584,17 +643,21 @@ ru:{
 'st.colors':'Цвета интерфейса','st.colorsNote':'Цвета сохраняются отдельно для светлой и тёмной темы. Изменения видны сразу.','st.presets':'Готовые палитры',
 'st.colorsReset':'Сбросить все цвета','st.reset1':'Вернуть цвет по умолчанию','st.contrastOk':'Контраст текста достаточный','st.contrastLow':'Низкий контраст текста: читать будет трудно',
 'st.sample':'Пример','st.security':'Безопасность и данные',
+'st.access':'Вход и защита','st.passTitle':'Смена пароля','st.curPass':'Текущий пароль','st.newPass':'Новый пароль','st.newPass2':'Повторите новый пароль',
+'st.pinTitle':'Смена PIN-кода','st.curPin':'Текущий PIN','st.newPin':'Новый PIN (4 цифры)','st.newPin2':'Повторите новый PIN','st.accSave':'Сохранить',
+'st.accErrCur':'Неверный текущий пароль/PIN','st.accErrMatch':'Новые значения не совпадают','st.accErrLen':'Пароль должен быть не короче 4 символов','st.accErrPin':'PIN должен состоять из 4 цифр',
+'st.accOkPass':'Пароль изменён','st.accOkPin':'PIN-код изменён','lock.hintSet':'Код и пароль заданы вами в Настройках',
 'cg.base':'Основа','cg.cells':'Ячейки','cg.buttons':'Кнопки','cg.tabs':'Вкладки','cg.cats':'Категории','cg.status':'Статусы',
 'c.bg':'Фон приложения','c.ink':'Текст','c.ink2':'Второстепенный текст','c.line':'Линии и границы','c.surface':'Ячейки и карточки','c.surface2':'Поля ввода',
 'c.amber':'Главные кнопки и акцент','c.navBg':'Панель вкладок','c.navActive':'Активная вкладка','c.sand':'Сырьё','c.steel':'Металлопрокат','c.oil':'Масла','c.danger':'Долг и ошибки','c.ok':'Успех (расчёт закрыт)'
 },
 kz:{
-'app.sub':'ЖБИ өндірісіне арналған жеткізілім есебі','demo':'Демо',
+'app.sub':'ЖБИ өндірісіне арналған жеткізілім есебі',
 'nav.home':'Басты бет','nav.deliveries':'Жеткізулер','nav.payments':'Төлемдер','nav.suppliers':'Жеткізушілер','nav.reports':'Есептер',
 'greet.morning':'Қайырлы таң','greet.day':'Қайырлы күн','greet.evening':'Қайырлы кеш','greet.night':'Қайырлы түн',
 'lock.pin':'Кодты енгізіңіз','lock.pass':'Құпиясөзді енгізіңіз','lock.usePass':'Құпиясөзбен кіру','lock.usePin':'Кодпен кіру','lock.enter':'Кіру',
 'lock.wrongPin':'Код қате','lock.wrongPass':'Құпиясөз қате','lock.wait':'Тым көп әрекет. {n} с күтіңіз',
-'lock.hint':'Демо: код 1234, құпиясөз demo','lock.passPh':'Құпиясөз','lock.del':'Өшіру',
+'lock.hint':'Кіру коды: 1234','lock.passPh':'Құпиясөз','lock.del':'Өшіру',
 'home.debt':'Жеткізушілерге қарыз','home.received':'Алынды','home.paid':'Төленді','home.paidPct':'{p}% төленді',
 'home.owe':'Кімге қарыздармыз','home.attention':'Назар аударыңыз','home.allGood':'Ескертулер жоқ','home.latest':'Соңғы жеткізулер','home.all':'Барлығы',
   'home.addDelivery':'Жеткізу қосу','home.addPayment':'Төлем қосу',
@@ -614,7 +677,7 @@ kz:{
 'r.title':'Есептер','r.recon':'Күнге салыстыру','r.supplier':'Жеткізуші','r.asOf':'Күні','r.received':'Алынды','r.paid':'Төленді','r.balance':'Төленуге тиіс қалдық',
 'r.period':'Кезең бойынша есеп','r.from':'Бастап','r.to':'Дейін','r.allSup':'Барлық жеткізуші','r.per7':'7 күн','r.per30':'30 күн','r.perMonth':'Осы ай',
 'r.perNone':'Кезеңде жеткізулер мен төлемдер жоқ','r.perPick':'Күнтізбеден кезеңді көрсетіңіз','r.perBad':'«Бастап» күні «Дейін» күнінен кейін',
-'r.copy':'Көшіру','r.print':'Басып шығару','r.copied':'Көшірілді','r.copyFail':'Көшіру мүмкін болмады','r.printFail':'Демода басып шығару қолжетімсіз',
+'r.copy':'Көшіру','r.print':'Басып шығару','r.copied':'Көшірілді','r.copyFail':'Көшіру мүмкін болмады','r.printFail':'Басып шығару қолжетімсіз',
 'r.cum':'Алынды және төленді','r.cumHint':'Сызықтар арасындағы алшақтық — сіздің қарызыңыз','r.monthly':'Айлар бойынша жеткізулер','r.act':'Салыстыру актісі','r.mln':'млн','r.total':'Барлығы','r.debt':'Қарыз','r.none':'Бұл күнге дейін жеткізулер жоқ','r.on':'Күні',
 'r.sign1':'Жеткізуші','r.sign2':'Сатып алушы',
 'f.newDelivery':'Жаңа жеткізу','f.editDelivery':'Жеткізу','f.newPayment':'Жаңа төлем','f.editPayment':'Төлем',
@@ -622,7 +685,7 @@ kz:{
 'f.sum':'Сомасы','f.debtAfter':'Төлемнен кейінгі қарыз','f.save':'Сақтау','f.cancel':'Бас тарту','f.delete':'Жою',
 'f.qtyErr':'Мөлшерді нөлден көп етіп көрсетіңіз','f.amountErr':'Соманы нөлден көп етіп көрсетіңіз','f.priceErr':'Бағасын көрсетіңіз','f.saved':'Сақталды','f.deleted':'Жойылды','f.undo':'Қайтару','f.addDelivery':'Жеткізу қосу','f.addPayment':'Төлем қосу',
 'st.title':'Баптаулар','st.look':'Сыртқы түрі','st.toggleTheme':'Тақырыпты ауыстыру','st.lang':'Тіл','st.theme':'Тема','st.auto':'Авто','st.light':'Жарық','st.dark':'Қараңғы',
-'st.sync':'Google Кестедегі көшірме','st.syncDemo':'Демо режимі: деректер тек осы браузерде сақталады. Жұмыс нұсқасында әр жазба бірден Google Кестеңізге түседі.',
+'st.sync':'Google Кестедегі көшірме','st.syncDemo':'Деректер тек осы браузерде сақталады. Кесте қосылған кезде әр жазба бірден Google Кестеңізге түседі.',
 'st.apiUrl':'Веб-қосымша URL','st.apiHint':'Нұсқаулықтан (4-қадам) веб-қосымша URL-ды енгізіңіз. Ол /exec-пен аяқталады.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Байланысты тексеру','st.push':'Жіберу','st.pull':'Жүктеу',
 'st.syncOff':'Кесте қосылмаған','st.syncOn':'Кестемен байланыс орнатылды','st.syncErr':'Қате: {e}','st.busy':'Қосылу…',
@@ -645,6 +708,10 @@ kz:{
 'st.colors':'Интерфейс түстері','st.colorsNote':'Түстер жарық және қараңғы тема үшін бөлек сақталады. Өзгерістер бірден көрінеді.','st.presets':'Дайын палитралар',
 'st.colorsReset':'Барлық түстерді қалпына келтіру','st.reset1':'Әдепкі түске қайтару','st.contrastOk':'Мәтін контрасты жеткілікті','st.contrastLow':'Мәтін контрасты төмен: оқу қиын болады',
 'st.sample':'Үлгі','st.security':'Қауіпсіздік және деректер',
+'st.access':'Кіру және қорғау','st.passTitle':'Құпиясөзді өзгерту','st.curPass':'Ағымдағы құпиясөз','st.newPass':'Жаңа құпиясөз','st.newPass2':'Жаңа құпиясөзді қайталаңыз',
+'st.pinTitle':'PIN-кодты өзгерту','st.curPin':'Ағымдағы PIN','st.newPin':'Жаңа PIN (4 цифр)','st.newPin2':'Жаңа PIN-ді қайталаңыз','st.accSave':'Сақтау',
+'st.accErrCur':'Ағымдағы құпиясөз/PIN қате','st.accErrMatch':'Жаңа мәндер сәйкес емес','st.accErrLen':'Құпиясөз кемінде 4 таңба болуы керек','st.accErrPin':'PIN 4 цифрдан тұруы керек',
+'st.accOkPass':'Құпиясөз өзгертілді','st.accOkPin':'PIN-код өзгертілді','lock.hintSet':'Код пен құпиясөз Баптауларда орнатылған',
 'cg.base':'Негізгі','cg.cells':'Ұяшықтар','cg.buttons':'Батырмалар','cg.tabs':'Қойындылар','cg.cats':'Санаттар','cg.status':'Мәртебелер',
 'c.bg':'Қолданба фоны','c.ink':'Мәтін','c.ink2':'Қосымша мәтін','c.line':'Сызықтар мен жиектер','c.surface':'Ұяшықтар мен карточкалар','c.surface2':'Енгізу өрістері',
 'c.amber':'Негізгі батырмалар мен екпін','c.navBg':'Қойындылар панелі','c.navActive':'Белсенді қойынды','c.sand':'Шикізат','c.steel':'Металл прокат','c.oil':'Майлар','c.danger':'Қарыз және қателер','c.ok':'Сәтті (есептесу жабық)'
@@ -693,7 +760,7 @@ const PRESETS=[
 const isHex=v=>typeof v==='string'&&/^#[0-9a-fA-F]{6}$/.test(v);
 const mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
 
-const P={lang:'ru',theme:'auto',defSup:'',brand:{name:'СНАБ',sub:'',logo:'',showName:true},colors:{light:{},dark:{}}};
+const P={lang:'ru',theme:'auto',defSup:'',brand:{name:'СНАБ',sub:'',logo:'',favicon:'',showName:true},colors:{light:{},dark:{}}};
 try{
   const p=JSON.parse(store.get('snab-prefs')||'null');
   if(p){
@@ -704,6 +771,7 @@ try{
       if(typeof p.brand.name==='string')P.brand.name=p.brand.name.slice(0,32);
       if(typeof p.brand.sub==='string')P.brand.sub=p.brand.sub.slice(0,60);
       if(typeof p.brand.logo==='string'&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(p.brand.logo))P.brand.logo=p.brand.logo;
+      if(typeof p.brand.favicon==='string'&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(p.brand.favicon))P.brand.favicon=p.brand.favicon;
       if(typeof p.brand.showName==='boolean')P.brand.showName=p.brand.showName;
     }
     if(p.colors)['light','dark'].forEach(m=>{const o=p.colors[m];if(o&&typeof o==='object')for(const k in o)if(TOKENS[k]&&isHex(o[k]))P.colors[m][k]=o[k].toLowerCase()});
@@ -812,7 +880,20 @@ function applyPrefs(){
   if(P.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',P.theme);
   r.lang=P.lang==='kz'?'kk':'ru';
   applyColors();
-  document.title=brandName()+' — '+(P.brand.sub||t('app.sub'))+' ('+t('demo').toLowerCase()+')';
+  document.title=P.lang==='kz'?'SNAB - тауарларды, шикізат пен материалдарды жеткізуді есепке алу':'SNAB - учет поставок товаров, сырья и материалов';
+  applyFavicon();
+}
+function applyFavicon(){
+  const url=P.brand.favicon||P.brand.logo||'';
+  let l=document.querySelector('link[data-snab="icon"]');
+  let a=document.querySelector('link[data-snab="apple"]');
+  if(!url){if(l)l.remove();if(a)a.remove();return}
+  if(!l){l=document.createElement('link');l.rel='icon';l.setAttribute('data-snab','icon');document.head.appendChild(l)}
+  if(!a){a=document.createElement('link');a.rel='apple-touch-icon';a.setAttribute('data-snab','apple');document.head.appendChild(a)}
+  const m=/^data:(image\/[a-z]+);/.exec(url);
+  if(m)l.type=m[1];
+  if(l.getAttribute('href')!==url)l.setAttribute('href',url);
+  if(a.getAttribute('href')!==url)a.setAttribute('href',url);
 }
 
 /* ================= оболочка ================= */
@@ -839,8 +920,8 @@ function renderChrome(){
     ${syncChipHTML()}
     ${langSeg()}
     <button class="icon-btn mobonly" data-act="lockNow" aria-label="${t('nav.exit')}" title="${t('nav.exit')}">${ic('exit')}</button>
-    <button class="icon-btn" data-act="themeToggle" aria-label="${t('st.toggleTheme')}" title="${t('st.toggleTheme')}">${ic(effMode()==='dark'?'sun':'moon')}</button>
-    <button class="icon-btn" data-act="nav" data-s="settings" aria-label="${t('nav.settings')}" ${S.screen==='settings'?'aria-pressed="true"':''}>${ic('gear')}</button>`;
+    <button class="icon-btn tbtn-theme" data-act="themeToggle" aria-label="${t('st.toggleTheme')}" title="${t('st.toggleTheme')}">${ic(effMode()==='dark'?'sun':'moon')}</button>
+    <button class="icon-btn tbtn-settings" data-act="nav" data-s="settings" aria-label="${t('nav.settings')}" ${S.screen==='settings'?'aria-pressed="true"':''}>${ic('gear')}</button>`;
   $('#nav').innerHTML=`<div class="nav-brand">${brandHTML()}</div>`+
     NAV.map(([s,i])=>`<button data-act="nav" data-s="${s}" ${S.screen===s?'aria-current="page"':''}><span class="pill">${ic(i)}</span><span class="lbl">${t('nav.'+s)}</span></button>`).join('')+
     `<div class="nav-foot"><button class="nav-exit" data-act="lockNow"><span class="pill">${ic('exit')}</span><span class="lbl">${t('nav.exit')}</span></button></div>`;
@@ -1324,7 +1405,7 @@ function closeSheet(){const r=$('#sheetRoot');r.hidden=true;r.innerHTML='';S.she
 function toast(msg,label,cb){
   const el=$('#toast');
   el.innerHTML=`<span>${esc(msg)}</span>${label?`<button data-act="toastAct">${esc(label)}</button>`:''}`;
-  el.classList.add('show');toastCb=cb||null;
+  el.classList.add('show');el.classList.toggle('act',!!label);toastCb=cb||null;
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),label?6000:2400);
 }
 
@@ -1640,6 +1721,22 @@ function renderSettings(){
         <p class="hintp">${t('st.demoData')}</p>
         <div class="btnrow"><button class="btn" data-act="lockNow">${ic('lock','sm')}${t('st.lock')}</button><button class="btn ghost" data-act="resetDemo">${t('st.reset')}</button></div>
       </section>
+      <section class="card"><h2 class="h2">${t('st.access')}</h2>
+        <h3 class="subh" style="margin-top:0">${t('st.passTitle')}</h3>
+        <label class="fld"><span>${t('st.curPass')}</span><input type="password" id="accCurP" autocomplete="current-password"></label>
+        <label class="fld"><span>${t('st.newPass')}</span><input type="password" id="accNewP" autocomplete="new-password"></label>
+        <label class="fld"><span>${t('st.newPass2')}</span><input type="password" id="accNewP2" autocomplete="new-password"></label>
+        <p class="err" id="accPassErr" role="alert"></p>
+        <div class="btnrow" style="margin-top:0"><button type="button" class="btn primary" data-act="savePass">${t('st.accSave')}</button></div>
+        <h3 class="subh">${t('st.pinTitle')}</h3>
+        <label class="fld"><span>${t('st.curPin')}</span><input type="password" id="accCurPin" inputmode="numeric" maxlength="4" autocomplete="current-password"></label>
+        <div class="two">
+          <label class="fld"><span>${t('st.newPin')}</span><input type="password" id="accNewPin" inputmode="numeric" maxlength="4" autocomplete="new-password"></label>
+          <label class="fld"><span>${t('st.newPin2')}</span><input type="password" id="accNewPin2" inputmode="numeric" maxlength="4" autocomplete="new-password"></label>
+        </div>
+        <p class="err" id="accPinErr" role="alert"></p>
+        <div class="btnrow" style="margin-top:0"><button type="button" class="btn primary" data-act="savePin">${t('st.accSave')}</button></div>
+      </section>
     <section class="card" id="colorsCard">${colorsHTML()}</section>
   </div>`;
 }
@@ -1685,7 +1782,7 @@ function setColor(id,hex,src){
 }
 function brandChanged(){savePrefsSoon();applyPrefs();renderChrome()}
 function setLogo(url){
-  P.brand.logo=url;savePrefs();renderChrome();
+  P.brand.logo=url;savePrefs();applyFavicon();renderChrome();
   if(S.screen==='settings')renderView(false);
   toast(t('st.logoSaved'));
 }
@@ -1707,6 +1804,14 @@ function handleLogo(file){
         const g=c.getContext('2d');
         if(!isPng){g.fillStyle='#ffffff';g.fillRect(0,0,w,h)}
         g.drawImage(img,0,0,w,h);
+        try{
+          const fs=64,fc=document.createElement('canvas');fc.width=fs;fc.height=fs;
+          const fg=fc.getContext('2d'),fk=Math.min(fs/img.width,fs/img.height);
+          const fw=Math.max(1,Math.round(img.width*fk)),fh=Math.max(1,Math.round(img.height*fk));
+          fg.clearRect(0,0,fs,fs);
+          fg.drawImage(img,(fs-fw)/2,(fs-fh)/2,fw,fh);
+          P.brand.favicon=fc.toDataURL('image/png');
+        }catch(e){P.brand.favicon=''}
         setLogo(c.toDataURL(isPng?'image/png':'image/jpeg',.92));
       }catch(e){fallback()}
     };
@@ -1720,9 +1825,40 @@ function setLang(l){
   if(S.unlocked){closeSheet();renderChrome();renderView(false)}
   else renderLock();
 }
+function accErr(id,msg){const e=$(id);if(e)e.textContent=msg||''}
+function savePassForm(){
+  const cur=(($('#accCurP')||{}).value||''),nw=(($('#accNewP')||{}).value||''),nw2=(($('#accNewP2')||{}).value||'');
+  if(cur!==getPass()){accErr('#accPassErr',t('st.accErrCur'));return}
+  if(nw.length<4){accErr('#accPassErr',t('st.accErrLen'));return}
+  if(nw!==nw2){accErr('#accPassErr',t('st.accErrMatch'));return}
+  AUTH.pass=nw;saveAuth();
+  ['#accCurP','#accNewP','#accNewP2'].forEach(s=>{const i=$(s);if(i)i.value=''});
+  accErr('#accPassErr','');toast(t('st.accOkPass'));
+}
+function savePinForm(){
+  const cur=(($('#accCurPin')||{}).value||''),nw=(($('#accNewPin')||{}).value||''),nw2=(($('#accNewPin2')||{}).value||'');
+  if(cur!==getPin()){accErr('#accPinErr',t('st.accErrCur'));return}
+  if(!/^\d{4}$/.test(nw)){accErr('#accPinErr',t('st.accErrPin'));return}
+  if(nw!==nw2){accErr('#accPinErr',t('st.accErrMatch'));return}
+  AUTH.pin=nw;saveAuth();
+  ['#accCurPin','#accNewPin','#accNewPin2'].forEach(s=>{const i=$(s);if(i)i.value=''});
+  accErr('#accPinErr','');toast(t('st.accOkPin'));
+}
 
 /* ================= вход ================= */
 const DEMO_PIN='1234',DEMO_PASS='demo';
+const AUTH={pin:'',pass:''};
+try{
+  const a=JSON.parse(store.get('snab-auth')||'null');
+  if(a){
+    if(typeof a.pin==='string'&&/^\d{4}$/.test(a.pin))AUTH.pin=a.pin;
+    if(typeof a.pass==='string'&&a.pass.length>=4&&a.pass.length<=64)AUTH.pass=a.pass;
+  }
+}catch(e){}
+const getPin=()=>AUTH.pin||DEMO_PIN;
+const getPass=()=>AUTH.pass||DEMO_PASS;
+const hasCustomAuth=()=>!!(AUTH.pin||AUTH.pass);
+const saveAuth=()=>store.set('snab-auth',JSON.stringify(AUTH));
 function renderLock(){
   const el=$('#lock'),pinMode=S.mode==='pin';
   el.innerHTML=`<div class="lock-in"><div class="lock-card">
@@ -1733,7 +1869,7 @@ function renderLock(){
     :`<form id="fLogin" autocomplete="off"><input type="password" id="passIn" placeholder="${t('lock.passPh')}" aria-label="${t('lock.passPh')}" autocomplete="off"><button class="btn primary" type="submit">${t('lock.enter')}</button></form>`}
     <p class="lock-msg" id="lockMsg" role="alert"></p>
     <button class="lock-link" data-act="${pinMode?'modePass':'modePin'}">${t(pinMode?'lock.usePass':'lock.usePin')}</button>
-    <p class="lock-hint">${t('lock.hint')}</p></div></div>`;
+    <p class="lock-hint">${esc(hasCustomAuth()?t('lock.hintSet'):t('lock.hint'))}</p></div></div>`;
   if(!pinMode)setTimeout(()=>{const i=$('#passIn');if(i)i.focus()},50);
   tickWait();
 }
@@ -1760,15 +1896,16 @@ function pinKey(k){
   const m=$('#lockMsg');if(m&&!S.lockUntil)m.textContent='';
   if(S.pin.length===4)setTimeout(()=>{
     if(S.mode!=='pin')return;
-    if(S.pin===DEMO_PIN)unlock();else fail(true);
+    if(S.pin===getPin())unlock();else fail(true);
   },140);
 }
 function tryPass(v){
   if(Date.now()<S.lockUntil)return;
-  if(v===DEMO_PASS)unlock();else fail(false);
+  if(v===getPass())unlock();else fail(false);
 }
 function unlock(){
   S.unlocked=true;S.attempts=0;S.pin='';S.animHome=true;S.screen='home';
+  try{store.set('snab-session','1')}catch(e){}
   $('#app').hidden=false;
   renderChrome();renderView(false);
   const l=$('#lock');l.classList.remove('in');l.classList.add('out');
@@ -1776,6 +1913,7 @@ function unlock(){
 }
 function lockNow(){
   closeSheet();S.unlocked=false;S.pin='';S.mode='pin';
+  try{store.del('snab-session')}catch(e){}
   $('#app').hidden=true;
   const l=$('#lock');l.hidden=false;l.classList.remove('out');l.classList.add('in');
   renderLock();window.scrollTo(0,0);
@@ -1791,10 +1929,12 @@ const A={
   close(){closeSheet()},
   settings(){go('settings')},
   lang(el){setLang(el.dataset.l)},
+  savePass(){savePassForm()},
+  savePin(){savePinForm()},
   theme(el){P.theme=el.dataset.v;savePrefs();applyPrefs();renderView(false)},
   themeToggle(){P.theme=effMode()==='dark'?'light':'dark';savePrefs();applyPrefs();renderChrome();if(S.screen==='settings')renderView(false)},
   pickLogo(){const i=$('#logoIn');if(i)i.click()},
-  logoDel(){P.brand.logo='';savePrefs();renderChrome();renderView(false)},
+  logoDel(){P.brand.logo='';P.brand.favicon='';savePrefs();applyFavicon();renderChrome();renderView(false)},
   preset(el){
     const p=PRESETS.find(x=>x.id===el.dataset.id);if(!p)return;
     P.colors={light:Object.assign({},p.light||{}),dark:Object.assign({},p.dark||{})};
@@ -1916,8 +2056,15 @@ document.addEventListener('keydown',e=>{
 /* ================= старт ================= */
 load();
 applyPrefs();
-renderLock();
-$('#lock').classList.add('in');
+if(store.get('snab-session')==='1'){
+  S.unlocked=true;S.animHome=true;S.screen='home';
+  $('#app').hidden=false;
+  renderChrome();renderView(false);
+  $('#lock').hidden=true;
+}else{
+  renderLock();
+  $('#lock').classList.add('in');
+}
 window.addEventListener('pagehide',savePrefs);
 if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{applyColors();if(S.unlocked&&S.screen==='settings')renderView(false)});
 })();
