@@ -837,11 +837,23 @@ const num=v=>{const x=parseFloat(String(v==null?'':v).replace(/[\s\u00A0]/g,'').
 /* ================= данные приложения ================= */
 let D;
 function seedData(){
-  return {deliveries:[],payments:[],log:[],supps:[],mats:[],groups:[]};
+  return {deliveries:[],payments:[],log:[],supps:[],mats:[],groups:[],trash:{d:[],p:[]}};
+}
+function cleanTrash(){
+  /* Tombstones удалённых записей: не дают загрузке из таблицы вернуть
+     удалённую поставку/оплату обратно. Хранятся в том же хранилище. */
+  if(!D||typeof D!=='object')return;
+  if(!D.trash||typeof D.trash!=='object')D.trash={d:[],p:[]};
+  ['d','p'].forEach(k=>{
+    let a=D.trash[k];
+    if(!Array.isArray(a))a=[];
+    a=a.filter(x=>typeof x==='string'&&x).slice(-1000);
+    D.trash[k]=a;
+  });
 }
 function load(){
   const raw=store.get('snab-demo-v2');
-  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[];if(!D.groups)D.groups=[]}catch(e){D=seedData()}}
+  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[];if(!D.groups)D.groups=[];cleanTrash()}catch(e){D=seedData()}}
   else D=seedData();
   rebuildCatalog();
 }
@@ -1529,14 +1541,56 @@ function savePayment(f){
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${money(rec.amount)}`);
   save();closeSheet();refresh();toast(t('f.saved'));queuePush();
 }
+function trashAdd(kind,id){
+  if(!D.trash)cleanTrash();
+  const k=kind==='D'?'d':'p';
+  const a=D.trash[k];
+  if(!a.includes(id)){a.push(id);if(a.length>1000)a.splice(0,a.length-1000)}
+}
+function trashDel(kind,id){
+  if(!D.trash)return;
+  const a=D.trash[kind==='D'?'d':'p'];
+  if(Array.isArray(a)){const i=a.indexOf(id);if(i>=0)a.splice(i,1)}
+}
+function isTrashed(kind,id){
+  const a=D.trash&&(kind==='D'?D.trash.d:D.trash.p);
+  return Array.isArray(a)&&a.includes(id);
+}
+function restoreDeleted(kind,rec){
+  const list=kind==='D'?D.deliveries:D.payments;
+  trashDel(kind,rec.id);
+  if(!list.some(x=>x.id===rec.id))list.push(rec);
+  if(D.log.length&&D.log[0].k==='del')D.log.shift();
+  save();refresh();queuePush();
+}
 function removeRecord(kind,id){
   const list=kind==='D'?D.deliveries:D.payments,i=list.findIndex(x=>x.id===id);
   if(i<0)return;
+  /* Единая операция удаления: сначала — из постоянного хранилища
+     (тот же localStorage-блоб, что переживает F5), затем мгновенный
+     пересчёт всех показателей через refresh(), затем — передача
+     удаления в общий источник (Google Таблица). */
   const rec=list.splice(i,1)[0];
+  trashAdd(kind,id);
   addLog('del',kind==='D'?`${SUP[rec.sup].name}, ${mname(MAT[rec.mat])}, ${qtyFmt(rec.qty)} ${unitOf(MAT[rec.mat])}`:`${SUP[rec.sup].name}, ${money(rec.amount)}`);
   save();closeSheet();refresh();
-  queuePush();
-  toast(t('f.deleted'),t('f.undo'),()=>{list.push(rec);D.log.shift();save();refresh();queuePush()});
+  flushDelete(kind,rec);
+  toast(t('f.deleted'),t('f.undo'),()=>restoreDeleted(kind,rec));
+}
+/* Доставка удаления до общего источника. Tombstone в D.trash гарантирует,
+   что следующая загрузка не вернёт запись, даже если сервер на момент
+   удаления недоступен или выгрузка задержалась. */
+function flushDelete(kind,rec){
+  if(!API_URL)return;
+  const act=kind==='D'?'deleteDelivery':'deletePayment';
+  apiCall(act,{id:rec.id}).catch(()=>{});
+  syncPush(true).then(()=>{},()=>{
+    /* Сервер отклонил удаление, а сеть есть: показываем ошибку и
+       предлагаем вернуть запись, а не теряем её молча. В офлайне запись
+       остаётся удалённой локально, выгрузка повторится автоматически. */
+    if(typeof navigator!=='undefined'&&navigator.onLine===false)return;
+    toast(t('st.pushFail',{e:SYNC.msg||'fail'}),t('f.undo'),()=>restoreDeleted(kind,rec));
+  });
 }
 function refresh(){renderView(false)}
 
@@ -1586,8 +1640,11 @@ function syncTest(){
     .then(j=>{if(!j||j.success!==true)throw new Error('fail');setSync('ok');toast(t('st.testOk'))})
     .catch(e=>{const raw=String(e.message||e);const m=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',m);toast(t('st.testFail',{e:m}))});
 }
+let pushBusy=false,pushDirty=false,pushQueued=false,pushRetryT=0;
 function syncPush(quiet){
   if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve()}
+  if(pushBusy){pushQueued=true;return Promise.resolve()}
+  pushBusy=true;
   setSync('busy');
   const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||''}));
   const p=D.payments.map(x=>({id:x.id,ts:x.ts,sup:x.sup,amount:x.amount,method:x.method,note:x.note||''}));
@@ -1595,13 +1652,18 @@ function syncPush(quiet){
   const unitRu={m3:'м³',t:'т',kg:'кг',sheet:'лист',l:'л',pcs:'шт',m:'м',m2:'м²',bag:'мешок',pack:'упак.',roll:'рулон'};
   const m=D.mats.map(x=>({id:x.id,ru:x.ru,kz:x.kz||x.ru,g:x.g,sup:x.sup,unit:unitRu[x.unit]||x.unit,price:x.price}));
   const gr=(D.groups||[]).map(x=>({id:x.id,name:x.name,color:x.color}));
-  return apiCall('syncDeliveries',{deliveries:d})
-    .then(()=>apiCall('syncPayments',{payments:p}))
+  const delD=(D.trash&&D.trash.d)||[],delP=(D.trash&&D.trash.p)||[];
+  return apiCall('syncDeliveries',{deliveries:d,deletedDeliveries:delD})
+    .then(()=>apiCall('syncPayments',{payments:p,deletedPayments:delP}))
     .then(()=>apiCall('syncSuppliers',{suppliers:s}))
     .then(()=>apiCall('syncMaterials',{materials:m}))
     .then(()=>apiCall('syncGroups',{groups:gr}))
-    .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}))})
-    .catch(e=>{const raw=String(e.message||e);const msg=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
+    .then(()=>{pushBusy=false;pushDirty=false;clearTimeout(pushRetryT);setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}));
+      if(pushQueued){pushQueued=false;queuePush()}})
+    .catch(e=>{pushBusy=false;pushDirty=true;const raw=String(e.message||e);const msg=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));
+      /* Неудавшаяся выгрузка не забывается: повторим автоматически,
+         иначе таблица и телефон разъедутся. */
+      clearTimeout(pushRetryT);pushRetryT=setTimeout(()=>{if(API_URL)syncPush(true).catch(()=>{})},30000);throw e});
 }
 let pullBusy=false;
 function syncPull(opts){
@@ -1640,12 +1702,14 @@ function syncPull(opts){
     rebuildCatalog();
     (g.deliveries||[]).forEach(r=>{
       const x=mapDelivery(r);if(!x||!SUP[x.sup]||!MAT[x.mat])return;
+      if(isTrashed('D',x.id))return;
       const old=D.deliveries.find(y=>y.id===x.id);
       if(old)Object.assign(old,x);else D.deliveries.push(x);
       n++;
     });
     (g.payments||[]).forEach(r=>{
       const x=mapPayment(r);if(!x||!SUP[x.sup])return;
+      if(isTrashed('P',x.id))return;
       const old=D.payments.find(y=>y.id===x.id);
       if(old)Object.assign(old,x);else D.payments.push(x);
       n++;
@@ -1657,6 +1721,12 @@ function syncPull(opts){
       D.log.push({ts,k,t:tt});n++;
     });
     D.log.sort(byDesc);D.log=D.log.slice(0,40);
+    /* Удалённые записи не воскресают загрузкой: вычищаем и локальные
+       остатки с tombstone (например, запись вернулась до появления метки). */
+    const dn=D.deliveries.length,pn=D.payments.length;
+    D.deliveries=D.deliveries.filter(x=>!isTrashed('D',x.id));
+    D.payments=D.payments.filter(x=>!isTrashed('P',x.id));
+    if(D.deliveries.length!==dn||D.payments.length!==pn)rebuildCatalog();
     rebuildCatalog();save();
     pullBusy=false;
     setSync('ok');
@@ -2292,8 +2362,8 @@ setTimeout(()=>retryOutbox().catch(()=>{}),2000);
    с ранее сохранённой таблицей и подтягиваем ВСЕ существующие записи.
    Дальше — тихая двунаправленная синхронизация без действий пользователя. */
 setTimeout(()=>{if(API_URL)bootSync()},1200);
-setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{})},60000);
-window.addEventListener('online',()=>{if(API_URL)bootSync()});
+setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(pushDirty&&API_URL&&!S.supplier)syncPush(true).catch(()=>{});if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{})},60000);
+window.addEventListener('online',()=>{if(API_URL){if(pushDirty)syncPush(true).catch(()=>{});bootSync()}});
 window.addEventListener('offline',()=>{if(API_URL)setSync('err',t('st.noConn'))});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&API_URL&&S.unlocked)queuePullSoon(1500)});
 window.addEventListener('focus',()=>{if(API_URL&&S.unlocked)queuePullSoon(2000)});
