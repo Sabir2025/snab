@@ -607,7 +607,7 @@ ru:{
 'home.quick':'Быстрая статистика','home.quickSub':'Сводка по всем данным',
 'sup.settled':'Расчёт закрыт','sup.toPay':'к оплате',
 'sup.pending':'Ожидает подтверждения','sup.fromSupplier':'От поставщика','sup.sent':'Поставка отправлена. Спасибо!',
-'sup.needLink':'Нет доступа к базе: откройте ссылку, полученную от покупателя.','sup.priceFixed':'Цена подставлена из справочника покупателя и недоступна для изменения.',
+'sup.needLink':'Нет доступа к базе: откройте полную ссылку, полученную от покупателя (интернет нужен один раз, дальше форма работает автономно).','sup.priceFixed':'Цена подставлена из справочника покупателя и недоступна для изменения.',
 'sup.pushFail':'Не удалось отправить в общую базу: {e}. Запись сохранена на этом устройстве.',
 'st.supLink':'Ссылка для поставщика','st.supLinkHint':'Отправьте её поставщику: откроется только форма «Добавить поставку». Цена подставляется из справочника.',
 'st.supLinkNoApi':'Чтобы ссылка работала на чужом устройстве, сначала подключите Google Таблицу выше (URL веб-приложения).',
@@ -678,7 +678,7 @@ kz:{
 'home.quick':'Жылдам статистика','home.quickSub':'Барлық деректер бойынша жиынтық',
 'sup.settled':'Есептесу жабық','sup.toPay':'төленуге тиіс',
 'sup.pending':'Растауды күтуде','sup.fromSupplier':'Жеткізушіден','sup.sent':'Жеткізу жіберілді. Рақмет!',
-'sup.needLink':'Базаға қолжетім жоқ: сатып алушыдан алған сілтемені ашыңыз.','sup.priceFixed':'Баға сатып алушы анықтамалығынан қойылды және өзгертуге болмайды.',
+'sup.needLink':'Базаға қолжетім жоқ: сатып алушыдан алған толық сілтемені ашыңыз (бір рет интернет керек, одан кейін форма автономды жұмыс істейді).','sup.priceFixed':'Баға сатып алушы анықтамалығынан қойылды және өзгертуге болмайды.',
 'sup.pushFail':'Ортақ базаға жіберу мүмкін болмады: {e}. Жазба осы құрылғыда сақталды.',
 'st.supLink':'Жеткізушіге сілтеме','st.supLinkHint':'Оны жеткізушіге жіберіңіз: тек «Жеткізу қосу» формасы ашылады. Баға анықтамалықтан қойылады.',
 'st.supLinkNoApi':'Сілтеме басқа құрылғыда жұмыс істеуі үшін алдымен жоғарыда Google Кестені қосыңыз (веб-қосымша URL).',
@@ -1744,7 +1744,34 @@ function supplierPull(){
 function supplierPush(rec){
   if(!API_URL)return Promise.resolve();
   return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
-    .catch(e=>{toast(t('sup.pushFail',{e:String(e.message||e)}));throw e});
+    .then(j=>{outboxDel(rec.id);return j})
+    .catch(e=>{outboxAdd(rec.id);toast(t('sup.pushFail',{e:String(e.message||e)}));throw e});
+}
+/* Очередь неотправленных поставок поставщика: запись всегда остаётся в
+   локальной базе, отправка в Таблицу повторяется позже и никогда не
+   блокирует форму. */
+function outboxGet(){try{const b=JSON.parse(store.get('snab-outbox')||'[]');return Array.isArray(b)?b.filter(x=>typeof x==='string'):[]}catch(e){return[]}}
+function outboxAdd(id){
+  if(!id)return;
+  try{const b=outboxGet();if(!b.includes(id)){b.push(id);store.set('snab-outbox',JSON.stringify(b))}}catch(e){}
+}
+function outboxDel(id){
+  if(!id)return;
+  try{store.set('snab-outbox',JSON.stringify(outboxGet().filter(x=>x!==id)))}catch(e){}
+}
+function retryOutbox(){
+  if(!API_URL)return Promise.resolve();
+  const ids=outboxGet();
+  if(!ids.length)return Promise.resolve();
+  let p=Promise.resolve();
+  ids.forEach(id=>{p=p.then(()=>{
+    const rec=D.deliveries.find(x=>x.id===id);
+    if(!rec){outboxDel(id);return null}
+    if(rec.src!=='supplier')return null;
+    return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
+      .then(()=>outboxDel(id),()=>null);
+  })});
+  return p.catch(()=>null);
 }
 function supplierLink(){
   const base=String(location.href.split('#')[0].split('?')[0]);
@@ -1779,8 +1806,12 @@ function bootSupplier(qs){
     const u=atob(s);
     if(/^https:\/\/script\.google[a-z-]*\.com\//.test(u))setApiUrl(u);
   }catch(e){}}
-  const open=()=>{
-    renderSupplierShell();
+  /* Форма всегда открывается мгновенно из локальной базы приложения.
+     Таблица — только фоновый канал: один раз подтягиваем справочники,
+     если их нет вообще, и молча повторяем неотправленное. Ошибка или
+     задержка Таблицы форму не блокируют и не скрывают. */
+  renderSupplierShell();
+  const openForm=()=>{
     if(!SUPPLIERS.length||!MATERIALS.length){
       $('#supview').innerHTML=`<div class="card"><p class="hintp">${t('sup.needLink')}</p></div>`;
       return;
@@ -1789,7 +1820,16 @@ function bootSupplier(qs){
     wireSupplierForm();
     window.scrollTo(0,0);
   };
-  if(API_URL){supplierPull().then(open,open)}else open();
+  if(SUPPLIERS.length&&MATERIALS.length){
+    openForm();
+    setTimeout(()=>retryOutbox().catch(()=>{}),1000);
+  }else if(API_URL){
+    $('#supview').innerHTML=`<div class="card"><p class="hintp">${t('st.busy')}</p></div>`;
+    let done=false;
+    const finish=ok=>{if(done)return;done=true;openForm();if(ok)setTimeout(()=>retryOutbox().catch(()=>{}),1000)};
+    setTimeout(()=>finish(false),12000);
+    supplierPull().then(()=>finish(true),()=>finish(false));
+  }else openForm();
 }
 
 
@@ -2202,6 +2242,7 @@ else if(store.get('snab-session')==='1'){
   renderLock();
   $('#lock').classList.add('in');
 }
+setTimeout(()=>retryOutbox().catch(()=>{}),2000);
 window.addEventListener('pagehide',savePrefs);
 if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{applyColors();if(S.unlocked&&S.screen==='settings')renderView(false)});
 })();
