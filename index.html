@@ -1501,8 +1501,30 @@ function saveDelivery(f){
   if(old)Object.assign(old,rec);else D.deliveries.push(rec);
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${mname(MAT[rec.mat])}, ${qtyFmt(rec.qty)} ${unitOf(MAT[rec.mat])}`);
   save();
-  if(isSup){closeSheet();supplierDone();toast(t('sup.sent'));supplierPush(rec).catch(()=>{});return}
+  if(isSup){supplierSubmit(f,rec);return}
   closeSheet();refresh();toast(t('f.saved'));queuePush();
+}
+/* Отправка поставщика с подтверждением сервера: экран успеха — только
+   после реального сохранения в общем источнике. При ошибке форма
+   и введённые данные остаются на месте, запись уже лежит в локальной
+   базе и встанет в очередь повторной отправки. */
+function supplierSubmit(f,rec){
+  if(f.dataset.sending==='1')return;
+  f.dataset.sending='1';
+  const btn=f.querySelector('.actions .btn.primary');
+  if(btn)btn.disabled=true;
+  const err=$('#fErr');
+  if(err)err.textContent=t('st.busy');
+  supplierPush(rec).then(
+    ()=>{closeSheet();supplierDone();toast(t('sup.sent'))},
+    e=>{
+      f.dataset.sending='';
+      if(btn)btn.disabled=false;
+      const msg=String((e&&e.message)||e);
+      if(err)err.textContent=t('sup.pushFail',{e:msg});
+      else toast(t('sup.pushFail',{e:msg}));
+    }
+  );
 }
 
 /* ---- форма оплаты ---- */
@@ -1584,7 +1606,7 @@ function flushDelete(kind,rec){
   if(!API_URL)return;
   const act=kind==='D'?'deleteDelivery':'deletePayment';
   apiCall(act,{id:rec.id}).catch(()=>{});
-  syncPush(true).then(()=>{},()=>{
+  syncPull({auto:true}).catch(()=>{}).then(()=>syncPush(true)).then(()=>{},()=>{
     /* Сервер отклонил удаление, а сеть есть: показываем ошибку и
        предлагаем вернуть запись, а не теряем её молча. В офлайне запись
        остаётся удалённой локально, выгрузка повторится автоматически. */
@@ -1815,7 +1837,10 @@ let pushT=0;
 function queuePush(){
   if(!API_URL)return;
   clearTimeout(pushT);
-  pushT=setTimeout(()=>{if(API_URL)syncPush(true).catch(()=>{})},1500);
+  /* Сначала тихо подтягиваем чужие строки (в т.ч. поставки поставщика),
+     потом выгружаем объединённое состояние — иначе можно затереть на
+     сервере запись, которую ещё не успели загрузить. */
+  pushT=setTimeout(()=>{if(API_URL)syncPull({auto:true}).catch(()=>{}).then(()=>{if(API_URL)syncPush(true).catch(()=>{})})},1500);
 }
 
 /* ================= режим поставщика (?mode=supplier) =================
@@ -1859,7 +1884,7 @@ function supplierPush(rec){
   if(!API_URL)return Promise.resolve();
   return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
     .then(j=>{outboxDel(rec.id);return j})
-    .catch(e=>{outboxAdd(rec.id);toast(t('sup.pushFail',{e:String(e.message||e)}));throw e});
+    .catch(e=>{outboxAdd(rec.id);throw e});
 }
 /* Очередь неотправленных поставок поставщика: запись всегда остаётся в
    локальной базе, отправка в Таблицу повторяется позже и никогда не
@@ -2362,8 +2387,8 @@ setTimeout(()=>retryOutbox().catch(()=>{}),2000);
    с ранее сохранённой таблицей и подтягиваем ВСЕ существующие записи.
    Дальше — тихая двунаправленная синхронизация без действий пользователя. */
 setTimeout(()=>{if(API_URL)bootSync()},1200);
-setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(pushDirty&&API_URL&&!S.supplier)syncPush(true).catch(()=>{});if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{})},60000);
-window.addEventListener('online',()=>{if(API_URL){if(pushDirty)syncPush(true).catch(()=>{});bootSync()}});
+setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(pushDirty&&API_URL&&!S.supplier)syncPush(true).catch(()=>{});if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{});if(API_URL&&S.supplier)retryOutbox().catch(()=>{})},60000);
+window.addEventListener('online',()=>{if(API_URL){if(S.supplier)retryOutbox().catch(()=>{});else{if(pushDirty)syncPush(true).catch(()=>{});bootSync()}}});
 window.addEventListener('offline',()=>{if(API_URL)setSync('err',t('st.noConn'))});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&API_URL&&S.unlocked)queuePullSoon(1500)});
 window.addEventListener('focus',()=>{if(API_URL&&S.unlocked)queuePullSoon(2000)});
