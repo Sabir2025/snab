@@ -638,6 +638,7 @@ ru:{
 'st.apiUrl':'URL веб-приложения','st.apiHint':'Вставьте URL веб-приложения из инструкции (шаг 4). Он заканчивается на /exec.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Проверить связь','st.push':'Выгрузить','st.pull':'Загрузить',
 'st.syncOff':'Таблица не подключена','st.syncOn':'Связь с таблицей установлена','st.syncErr':'Ошибка: {e}','st.busy':'Соединение…',
+'st.restoring':'Восстановление связи…','st.noConn':'Нет соединения — ожидание синхронизации',
 'st.noUrl':'Сначала укажите URL веб-приложения',
 'st.testOk':'Связь с таблицей работает','st.testFail':'Не удалось связаться: {e}',
 'st.pushOk':'Выгружено: {n}','st.pushFail':'Выгрузка не удалась: {e}',
@@ -709,6 +710,7 @@ kz:{
 'st.apiUrl':'Веб-қосымша URL','st.apiHint':'Нұсқаулықтан (4-қадам) веб-қосымша URL-ды енгізіңіз. Ол /exec-пен аяқталады.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Байланысты тексеру','st.push':'Жіберу','st.pull':'Жүктеу',
 'st.syncOff':'Кесте қосылмаған','st.syncOn':'Кестемен байланыс орнатылды','st.syncErr':'Қате: {e}','st.busy':'Қосылу…',
+'st.restoring':'Байланыс қалпына келтірілуде…','st.noConn':'Байланыс жоқ — синхрондау күтілуде',
 'st.noUrl':'Алдымен веб-қосымша URL көрсетіңіз',
 'st.testOk':'Кестемен байланыс жұмыс істейді','st.testFail':'Байланысу мүмкін болмады: {e}',
 'st.pushOk':'Жіберілді: {n}','st.pushFail':'Жіберу сәтсіз: {e}',
@@ -1557,8 +1559,9 @@ function apiCall(action,payload){
 }
 function setSync(state,msg){SYNC.state=state;SYNC.msg=msg||'';updateSyncUI()}
 function syncChipHTML(){
+  const busy=SYNC.state==='busy'||(API_URL&&SYNC.state==='off');
   const cls=SYNC.state==='ok'?'on':SYNC.state==='err'?'err':'';
-  const lbl=SYNC.state==='busy'?t('st.chipBusy'):SYNC.state==='err'?t('st.chipErr'):SYNC.state==='ok'?t('st.chipOk'):t('st.chipOff');
+  const lbl=busy?t('st.chipBusy'):SYNC.state==='err'?t('st.chipErr'):SYNC.state==='ok'?t('st.chipOk'):t('st.chipOff');
   return `<button class="syncchip ${cls}" id="syncChip" data-act="syncInfo" title="${esc(t('st.sync'))}">${ic('cloud')}<span>${esc(lbl)}</span></button>`;
 }
 function syncStatHTML(){
@@ -1567,7 +1570,7 @@ function syncStatHTML(){
   else if(SYNC.state==='busy'){cls='off';icon='cloud';txt=t('st.busy')}
   else if(SYNC.state==='err'){cls='err';icon='alert';txt=t('st.syncErr',{e:SYNC.msg})}
   else if(SYNC.state==='ok'){cls='ok';icon='check';txt=t('st.syncOn')}
-  else{cls='off';icon='cloud';txt=t('st.syncOff')}
+  else{cls='off';icon='cloud';txt=t('st.restoring')}
   return `<div class="syncstat ${cls}" id="syncStat">${ic(icon)}<span>${esc(txt)}</span></div>`;
 }
 function updateSyncUI(){
@@ -1581,7 +1584,7 @@ function syncTest(){
   setSync('busy');
   fetch(API_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
     .then(j=>{if(!j||j.success!==true)throw new Error('fail');setSync('ok');toast(t('st.testOk'))})
-    .catch(e=>{const m=String(e.message||e);setSync('err',m);toast(t('st.testFail',{e:m}))});
+    .catch(e=>{const raw=String(e.message||e);const m=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',m);toast(t('st.testFail',{e:m}))});
 }
 function syncPush(quiet){
   if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve()}
@@ -1598,12 +1601,17 @@ function syncPush(quiet){
     .then(()=>apiCall('syncMaterials',{materials:m}))
     .then(()=>apiCall('syncGroups',{groups:gr}))
     .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}))})
-    .catch(e=>{const msg=String(e.message||e);setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
+    .catch(e=>{const raw=String(e.message||e);const msg=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
 }
-function syncPull(){
-  if(!API_URL){toast(t('st.noUrl'));return}
+let pullBusy=false;
+function syncPull(opts){
+  const auto=!!(opts&&opts.auto);
+  const quiet=auto||opts===true||!!(opts&&opts.quiet);
+  if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve(0)}
+  if(pullBusy)return Promise.resolve(0);
+  pullBusy=true;
   setSync('busy');
-  apiCall('getAllData').then(res=>{
+  return apiCall('getAllData').then(res=>{
     const g=(res&&res.data)||{};
     let n=0;
     (g.groups||[]).forEach(r=>{
@@ -1650,10 +1658,46 @@ function syncPull(){
     });
     D.log.sort(byDesc);D.log=D.log.slice(0,40);
     rebuildCatalog();save();
+    pullBusy=false;
     setSync('ok');
-    if(S.screen==='settings')renderView(false);
-    toast(n?t('st.pullOk',{n}):t('st.pullEmpty'));
-  }).catch(e=>{const msg=String(e.message||e);setSync('err',msg);toast(t('st.pullFail',{e:msg}))});
+    /* Полная загрузка должна обновить любой открытый экран (а не только
+       настройки), чтобы веб и мобильная версии показывали одинаковые данные. */
+    if(S.unlocked&&!S.supplier)refresh();
+    if(!quiet)toast(n?t('st.pullOk',{n}):t('st.pullEmpty'));
+    return n;
+  }).catch(e=>{
+    pullBusy=false;
+    /* Подключение НЕ считается удалённым: URL сохранён, показываем
+       «Нет соединения / ожидание», повторная привязка не нужна. */
+    const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
+    const raw=String((e&&e.message)||e);
+    const msg=offline?t('st.noConn'):(/failed to fetch|networkerror|load failed/i.test(raw)?t('st.noConn'):raw);
+    setSync('err',msg);
+    if(!quiet)toast(t('st.pullFail',{e:msg}));
+    throw e;
+  });
+}
+/* Первоначальная загрузка ВСЕХ существующих записей при старте и
+   тихое восстановление связи с ранее подключённой таблицей.
+   Не создаёт отдельных баз: работает с тем же D/localStorage. */
+let bootPullT=0;
+function bootSync(){
+  if(!API_URL||S.supplier)return;
+  clearTimeout(bootPullT);
+  setSync(API_URL&&SYNC.state==='ok'?'ok':'busy');
+  updateSyncUI();
+  syncPull({auto:true}).catch(()=>{
+    /* Таблица временно недоступна — остаёмся на том же URL и
+       пробуем снова через 30 с без действий пользователя. */
+    clearTimeout(bootPullT);
+    bootPullT=setTimeout(()=>{if(API_URL)bootSync()},30000);
+  });
+}
+let pullSoonT=0;
+function queuePullSoon(ms){
+  if(!API_URL||S.supplier)return;
+  clearTimeout(pullSoonT);
+  pullSoonT=setTimeout(()=>{syncPull({auto:true}).catch(()=>{})},ms||2500);
 }
 function localTs(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function sheetTs(v){
@@ -2069,6 +2113,7 @@ function unlock(){
   try{store.set('snab-session','1')}catch(e){}
   $('#app').hidden=false;
   renderChrome();renderView(false);
+  if(API_URL)queuePullSoon(1500);
   const l=$('#lock');l.classList.remove('in');l.classList.add('out');
   setTimeout(()=>{if(S.unlocked)l.hidden=true},reduce?0:560);
 }
@@ -2209,7 +2254,7 @@ document.addEventListener('input',e=>{
   if(el.id==='q'){S.q=el.value;fillDeliveries()}
   else if(el.id==='bName'){P.brand.name=el.value;brandChanged()}
   else if(el.id==='bSub'){P.brand.sub=el.value;savePrefsSoon();applyPrefs()}
-  else if(el.id==='apiUrl'){setApiUrl(el.value)}
+  else if(el.id==='apiUrl'){setApiUrl(el.value);if(String(el.value||'').trim())queuePullSoon(2000);else{clearTimeout(bootPullT);clearTimeout(pullSoonT)}}
   else if(ds.col)setColor(ds.col,el.value,el);
   else if(ds.hex){const v=el.value.trim(),w=v[0]==='#'?v:'#'+v;if(isHex(w))setColor(ds.hex,w,el)}
 });
@@ -2243,6 +2288,15 @@ else if(store.get('snab-session')==='1'){
   $('#lock').classList.add('in');
 }
 setTimeout(()=>retryOutbox().catch(()=>{}),2000);
+/* Постоянное подключение: при старте автоматически восстанавливаем связь
+   с ранее сохранённой таблицей и подтягиваем ВСЕ существующие записи.
+   Дальше — тихая двунаправленная синхронизация без действий пользователя. */
+setTimeout(()=>{if(API_URL)bootSync()},1200);
+setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{})},60000);
+window.addEventListener('online',()=>{if(API_URL)bootSync()});
+window.addEventListener('offline',()=>{if(API_URL)setSync('err',t('st.noConn'))});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&API_URL&&S.unlocked)queuePullSoon(1500)});
+window.addEventListener('focus',()=>{if(API_URL&&S.unlocked)queuePullSoon(2000)});
 window.addEventListener('pagehide',savePrefs);
 if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{applyColors();if(S.unlocked&&S.screen==='settings')renderView(false)});
 })();
