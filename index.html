@@ -485,6 +485,14 @@ h1,h2,h3,p{margin:0}
   .keys button{height:54px}
 }
 
+/* === режим поставщика (?mode=supplier): та же форма, без остального приложения === */
+.supplier-mode #app,.supplier-mode #lock,.supplier-mode .fab{display:none!important}
+.supplier-mode .scrim{display:none!important}
+.supplier-mode .sheet{position:static;left:auto;right:auto;bottom:auto;top:auto;transform:none;width:min(640px,100%);margin:14px auto;max-height:none;border-radius:22px;border:1px solid var(--line);animation:up .3s cubic-bezier(.2,.8,.2,1) both}
+.supplier-mode .sheet-body{overflow:visible}
+.supplier-mode .sheet [data-act="close"]{display:none!important}
+.supplier-mode input[readonly]{opacity:.8}
+
 </style>
 </head>
 <body>
@@ -598,6 +606,12 @@ ru:{
   'home.addDelivery':'Добавить поставку','home.addPayment':'Добавить оплату',
 'home.quick':'Быстрая статистика','home.quickSub':'Сводка по всем данным',
 'sup.settled':'Расчёт закрыт','sup.toPay':'к оплате',
+'sup.pending':'Ожидает подтверждения','sup.fromSupplier':'От поставщика','sup.sent':'Поставка отправлена. Спасибо!',
+'sup.needLink':'Нет доступа к базе: откройте ссылку, полученную от покупателя.','sup.priceFixed':'Цена подставлена из справочника покупателя и недоступна для изменения.',
+'sup.pushFail':'Не удалось отправить в общую базу: {e}. Запись сохранена на этом устройстве.',
+'st.supLink':'Ссылка для поставщика','st.supLinkHint':'Отправьте её поставщику: откроется только форма «Добавить поставку». Цена подставляется из справочника.',
+'st.supLinkNoApi':'Чтобы ссылка работала на чужом устройстве, сначала подключите Google Таблицу выше (URL веб-приложения).',
+'st.copyLink':'Копировать ссылку','st.openForm':'Открыть форму',
 'g.all':'Все','g.raw':'Сырьё','g.metal':'Металлопрокат','g.oil':'Масла',
 'd.title':'Поставки','d.search':'Материал или поставщик','d.p.all':'Всё время','d.p.30':'30 дней','d.p.7':'7 дней',
 'd.today':'Сегодня','d.yesterday':'Вчера','d.empty':'Ничего не найдено','d.emptyHint':'Измените фильтр или поиск','d.reset':'Сбросить фильтр',
@@ -617,7 +631,7 @@ ru:{
 'r.sign1':'Поставщик','r.sign2':'Покупатель',
 'f.newDelivery':'Новая поставка','f.editDelivery':'Поставка','f.newPayment':'Новая оплата','f.editPayment':'Оплата',
 'f.supplier':'Поставщик','f.material':'Материал','f.qty':'Количество','f.price':'Цена за единицу, ₸','f.date':'Дата','f.note':'Примечание','f.amount':'Сумма, ₸','f.method':'Способ',
-'f.sum':'Сумма','f.debtAfter':'Долг после оплаты','f.save':'Сохранить','f.cancel':'Отмена','f.delete':'Удалить',
+'f.sum':'Сумма','f.debtAfter':'Долг после оплаты','f.save':'Сохранить','f.cancel':'Отмена','f.delete':'Удалить','f.confirm':'Подтвердить','f.confirmed':'Подтверждено',
 'f.qtyErr':'Укажите количество больше нуля','f.amountErr':'Укажите сумму больше нуля','f.priceErr':'Укажите цену','f.saved':'Сохранено','f.deleted':'Удалено','f.undo':'Вернуть','f.addDelivery':'Добавить поставку','f.addPayment':'Добавить оплату',
 'st.title':'Настройки','st.look':'Оформление','st.toggleTheme':'Переключить тему','st.lang':'Язык','st.theme':'Тема','st.auto':'Авто','st.light':'Светлая','st.dark':'Тёмная',
 'st.sync':'Копия в Google Таблице','st.syncDemo':'Данные хранятся только в этом браузере. Когда таблица подключена, каждая запись сразу попадает в вашу Google Таблицу.',
@@ -663,6 +677,12 @@ kz:{
   'home.addDelivery':'Жеткізу қосу','home.addPayment':'Төлем қосу',
 'home.quick':'Жылдам статистика','home.quickSub':'Барлық деректер бойынша жиынтық',
 'sup.settled':'Есептесу жабық','sup.toPay':'төленуге тиіс',
+'sup.pending':'Растауды күтуде','sup.fromSupplier':'Жеткізушіден','sup.sent':'Жеткізу жіберілді. Рақмет!',
+'sup.needLink':'Базаға қолжетім жоқ: сатып алушыдан алған сілтемені ашыңыз.','sup.priceFixed':'Баға сатып алушы анықтамалығынан қойылды және өзгертуге болмайды.',
+'sup.pushFail':'Ортақ базаға жіберу мүмкін болмады: {e}. Жазба осы құрылғыда сақталды.',
+'st.supLink':'Жеткізушіге сілтеме','st.supLinkHint':'Оны жеткізушіге жіберіңіз: тек «Жеткізу қосу» формасы ашылады. Баға анықтамалықтан қойылады.',
+'st.supLinkNoApi':'Сілтеме басқа құрылғыда жұмыс істеуі үшін алдымен жоғарыда Google Кестені қосыңыз (веб-қосымша URL).',
+'st.copyLink':'Сілтемені көшіру','st.openForm':'Форма ашу',
 'g.all':'Барлығы','g.raw':'Шикізат','g.metal':'Металл прокат','g.oil':'Майлар',
 'd.title':'Жеткізулер','d.search':'Материал немесе жеткізуші','d.p.all':'Барлық уақыт','d.p.30':'30 күн','d.p.7':'7 күн',
 'd.today':'Бүгін','d.yesterday':'Кеше','d.empty':'Ештеңе табылмады','d.emptyHint':'Сүзгіні немесе іздеуді өзгертіңіз','d.reset':'Сүзгіні тазалау',
@@ -682,7 +702,7 @@ kz:{
 'r.sign1':'Жеткізуші','r.sign2':'Сатып алушы',
 'f.newDelivery':'Жаңа жеткізу','f.editDelivery':'Жеткізу','f.newPayment':'Жаңа төлем','f.editPayment':'Төлем',
 'f.supplier':'Жеткізуші','f.material':'Материал','f.qty':'Мөлшері','f.price':'Бірлік бағасы, ₸','f.date':'Күні','f.note':'Ескертпе','f.amount':'Сомасы, ₸','f.method':'Тәсілі',
-'f.sum':'Сомасы','f.debtAfter':'Төлемнен кейінгі қарыз','f.save':'Сақтау','f.cancel':'Бас тарту','f.delete':'Жою',
+'f.sum':'Сомасы','f.debtAfter':'Төлемнен кейінгі қарыз','f.save':'Сақтау','f.cancel':'Бас тарту','f.delete':'Жою','f.confirm':'Растау','f.confirmed':'Расталды',
 'f.qtyErr':'Мөлшерді нөлден көп етіп көрсетіңіз','f.amountErr':'Соманы нөлден көп етіп көрсетіңіз','f.priceErr':'Бағасын көрсетіңіз','f.saved':'Сақталды','f.deleted':'Жойылды','f.undo':'Қайтару','f.addDelivery':'Жеткізу қосу','f.addPayment':'Төлем қосу',
 'st.title':'Баптаулар','st.look':'Сыртқы түрі','st.toggleTheme':'Тақырыпты ауыстыру','st.lang':'Тіл','st.theme':'Тема','st.auto':'Авто','st.light':'Жарық','st.dark':'Қараңғы',
 'st.sync':'Google Кестедегі көшірме','st.syncDemo':'Деректер тек осы браузерде сақталады. Кесте қосылған кезде әр жазба бірден Google Кестеңізге түседі.',
@@ -848,7 +868,7 @@ function computeIssues(){
 }
 
 /* ================= состояние интерфейса ================= */
-const S={screen:'home',group:'all',period:'all',q:'',only:'',prefSup:'',unlocked:false,animHome:false,
+const S={screen:'home',group:'all',period:'all',q:'',only:'',prefSup:'',unlocked:false,animHome:false,supplier:false,
   pin:'',mode:'pin',attempts:0,lockUntil:0,recon:{sup:'',date:''},per:{sup:'',from:'',to:''},sheet:''};
 let toastT=0,toastCb=null,waitT=0;
 
@@ -958,7 +978,7 @@ function deliveryItem(d){
   const m=MAT[d.mat],s=SUP[d.sup],time=d.ts.slice(11)==='00:00'?'':', '+d.ts.slice(11);
   return `<button class="item" data-act="editD" data-id="${d.id}" style="--gc:var(${GROUPS[m.g]||'--sand'})">
     <span class="dot"></span>
-    <span class="item-main"><b>${esc(mname(m))}</b><small>${esc(s.name)}${time}${d.note?', '+esc(d.note):''}</small></span>
+    <span class="item-main"><b>${esc(mname(m))}</b>${d.src==='supplier'?`<span class="tag">${esc(t(d.status==='pending'?'sup.pending':'sup.fromSupplier'))}</span>`:''}<small>${esc(s.name)}${time}${d.note?', '+esc(d.note):''}</small></span>
     <span class="item-val"><b>${qtyFmt(d.qty)} ${unitOf(m)}</b><small>${money(amt(d))}</small></span></button>`;
 }
 function renderHome(){
@@ -1410,7 +1430,7 @@ function toast(msg,label,cb){
 }
 
 /* ---- форма поставки ---- */
-function deliveryForm(id){
+function deliveryForm(id,opts){
   if(!SUPPLIERS.length||!MATERIALS.length){toast(t('s.noMats'));return}
   const d=id?D.deliveries.find(x=>x.id===id):null;
   let sup0=d?d.sup:(S.prefSup||P.defSup||'shatam');S.prefSup='';
@@ -1428,6 +1448,7 @@ function deliveryForm(id){
     <div class="sumline"><span>${t('f.sum')}</span><b id="sumOut">0 ₸</b></div>
     <p class="err" id="fErr" role="alert"></p>
     <div class="actions">${d?`<button type="button" class="btn danger" data-act="delD" data-id="${d.id}">${t('f.delete')}</button>`:`<button type="button" class="btn ghost" data-act="close">${t('f.cancel')}</button>`}<button class="btn primary" type="submit">${t('f.save')}</button></div>
+    ${d&&d.status==='pending'&&!(opts&&opts.supplier)?`<div class="btnrow"><button type="button" class="btn violet" data-act="confirmD" data-id="${d.id}">${t('f.confirm')}</button></div>`:''}
   </form>`,'fD');
   const f=$('#fD');f.dataset.id=d?d.id:'';
   const fillMats=(sel)=>{
@@ -1452,16 +1473,22 @@ function deliveryForm(id){
   }else{fillMats();f.elements.date.value=dstr(new Date());onMat(false)}
 }
 function saveDelivery(f){
-  const qty=num(f.elements.qty.value),price=num(f.elements.price.value),err=$('#fErr');
+  const qty=num(f.elements.qty.value),err=$('#fErr');
   if(!(qty>0)){err.textContent=t('f.qtyErr');f.elements.qty.focus();return}
+  const isSup=f.dataset.sup==='1';
+  let price=num(f.elements.price.value);
+  if(isSup){const cm=MAT[f.elements.mat.value];price=cm?Math.round(num(cm.price)):0}
   if(!(price>0)){err.textContent=t('f.priceErr');f.elements.price.focus();return}
   const date=f.elements.date.value||dstr(new Date()),now=new Date();
   const old=f.dataset.id?D.deliveries.find(x=>x.id===f.dataset.id):null;
   const time=old?old.ts.slice(11):`${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const rec={id:old?old.id:'n'+Date.now().toString(36),ts:date+' '+time,sup:f.elements.sup.value,mat:f.elements.mat.value,qty,price,note:f.elements.note.value.trim()};
+  if(isSup){rec.src='supplier';rec.status='pending'}
   if(old)Object.assign(old,rec);else D.deliveries.push(rec);
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${mname(MAT[rec.mat])}, ${qtyFmt(rec.qty)} ${unitOf(MAT[rec.mat])}`);
-  save();closeSheet();refresh();toast(t('f.saved'));queuePush();
+  save();
+  if(isSup){closeSheet();supplierDone();toast(t('sup.sent'));supplierPush(rec).catch(()=>{});return}
+  closeSheet();refresh();toast(t('f.saved'));queuePush();
 }
 
 /* ---- форма оплаты ---- */
@@ -1645,7 +1672,7 @@ function mapDelivery(r){
     sup=String(r['ПоставщикID']||'').trim(),mat=String(r['МатериалID']||'').trim(),
     qty=parseFloat(r['Количество']),price=parseFloat(r['Цена']);
   if(!id||!ts||!sup||!mat||!(qty>0)||!(price>0))return null;
-  return {id,ts,sup,mat,qty,price,note:String(r['Примечание']||'')};
+  return {id,ts,sup,mat,qty,price,note:String(r['Примечание']||''),src:String(r['Источник']||'').trim(),status:String(r['Статус']||'').trim()};
 }
 function mapPayment(r){
   const id=String(r['ID']||'').trim(),ts=sheetTs(r['ДатаВремя']),
@@ -1675,6 +1702,94 @@ function queuePush(){
   if(!API_URL)return;
   clearTimeout(pushT);
   pushT=setTimeout(()=>{if(API_URL)syncPush(true).catch(()=>{})},1500);
+}
+
+/* ================= режим поставщика (?mode=supplier) =================
+   Та же форма поставки (deliveryForm/saveDelivery), но: цена readonly и при
+   сохранении берётся из справочника, запись помечается src/status и уходит
+   в общую Google Таблицу действием addSupplierDelivery. Сервер обязан
+   перепроверить цену по листу «Материалы» (фрагмент кода — в сообщении
+   к релизу), браузерному значению не доверять. */
+function renderSupplierShell(){
+  let root=$('#supplier');
+  if(!root){root=document.createElement('div');root.id='supplier';document.body.appendChild(root)}
+  root.innerHTML=`<header class="topbar">${brandHTML()}<span class="grow"></span></header><main class="main" id="supview"></main>`;
+}
+function supplierPull(){
+  return apiCall('getAllData').then(res=>{
+    const g=(res&&res.data)||{};
+    (g.groups||[]).forEach(r=>{
+      const gid=String(r['ID']||'').trim(),gnm=String(r['Название']||'').trim();
+      if(!gid||!gnm)return;
+      let gcol=String(r['Цвет']||'').trim();if(!isHex(gcol))gcol='#8a8a93';
+      D.groups=D.groups||[];
+      const old=D.groups.find(y=>y.id===gid);
+      if(old)Object.assign(old,{name:gnm,color:gcol.toLowerCase()});else D.groups.push({id:gid,name:gnm,color:gcol.toLowerCase()});
+    });
+    (g.suppliers||[]).forEach(r=>{
+      const x=mapSupplier(r);if(!x)return;
+      if(BASE_SUPPLIERS.some(b=>b.id===x.id))return;
+      const old=D.supps.find(y=>y.id===x.id);
+      if(old)Object.assign(old,x);else D.supps.push(x);
+    });
+    (g.materials||[]).forEach(r=>{
+      const x=mapMaterial(r);if(!x)return;
+      if(BASE_MATERIALS.some(b=>b.id===x.id))return;
+      const old=D.mats.find(y=>y.id===x.id);
+      if(old)Object.assign(old,x);else D.mats.push(x);
+    });
+    rebuildCatalog();save();
+  });
+}
+function supplierPush(rec){
+  if(!API_URL)return Promise.resolve();
+  return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
+    .catch(e=>{toast(t('sup.pushFail',{e:String(e.message||e)}));throw e});
+}
+function supplierLink(){
+  const base=String(location.href.split('#')[0].split('?')[0]);
+  let q='?mode=supplier';
+  if(API_URL){try{
+    q+='&api='+btoa(API_URL).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }catch(e){}}
+  return base+q;
+}
+function wireSupplierForm(){
+  const f=$('#fD');if(!f)return;
+  f.dataset.sup='1';
+  f.elements.price.readOnly=true;
+  f.elements.price.setAttribute('aria-readonly','true');
+  const acts=f.querySelector('.actions');
+  if(acts)acts.insertAdjacentHTML('beforebegin',`<p class="hintp">${t('sup.priceFixed')}</p>`);
+}
+function supplierDone(){
+  const v=$('#supview');
+  if(v)v.innerHTML=`<div class="card"><div class="okline">${ic('check')}${t('sup.sent')}</div><div class="btnrow"><button type="button" class="btn primary" data-act="supNew">${t('f.addDelivery')}</button></div></div>`;
+  window.scrollTo(0,0);
+}
+function bootSupplier(qs){
+  S.supplier=true;
+  document.body.classList.add('supplier-mode');
+  $('#app').hidden=true;$('#lock').hidden=true;
+  const fb=$('#fab');if(fb)fb.hidden=true;
+  const api=qs.get('api');
+  if(api){try{
+    let s=String(api).replace(/-/g,'+').replace(/_/g,'/');
+    while(s.length%4)s+='=';
+    const u=atob(s);
+    if(/^https:\/\/script\.google[a-z-]*\.com\//.test(u))setApiUrl(u);
+  }catch(e){}}
+  const open=()=>{
+    renderSupplierShell();
+    if(!SUPPLIERS.length||!MATERIALS.length){
+      $('#supview').innerHTML=`<div class="card"><p class="hintp">${t('sup.needLink')}</p></div>`;
+      return;
+    }
+    deliveryForm(null,{supplier:true});
+    wireSupplierForm();
+    window.scrollTo(0,0);
+  };
+  if(API_URL){supplierPull().then(open,open)}else open();
 }
 
 
@@ -1736,6 +1851,12 @@ function renderSettings(){
         </div>
         <p class="err" id="accPinErr" role="alert"></p>
         <div class="btnrow" style="margin-top:0"><button type="button" class="btn primary" data-act="savePin">${t('st.accSave')}</button></div>
+      </section>
+      <section class="card"><h2 class="h2">${t('st.supLink')}</h2>
+        <p class="hintp">${t('st.supLinkHint')}</p>
+        <label class="fld"><span>${t('st.supLink')}</span><input id="supLinkIn" readonly value="${esc(supplierLink())}" spellcheck="false" autocomplete="off" onfocus="this.select()"></label>
+        ${API_URL?'':`<p class="hintp">${t('st.supLinkNoApi')}</p>`}
+        <div class="btnrow"><button type="button" class="btn violet" data-act="copySupLink">${ic('copy','sm')}${t('st.copyLink')}</button><button type="button" class="btn" data-act="openSupLink">${t('st.openForm')}</button></div>
       </section>
     <section class="card" id="colorsCard">${colorsHTML()}</section>
   </div>`;
@@ -1946,6 +2067,12 @@ const A={
   matAdd(){const b=$('#matRows');if(b){b.insertAdjacentHTML('beforeend',matRowHTML());const i=$$('.matrow input.mr-name',b);if(i.length)i[i.length-1].focus()}},
   matDel(el){const r=el.closest('.matrow'),b=$('#matRows');if(!r)return;if($$('.matrow',b).length<=1){$$('input',r).forEach(i=>i.value='');return}r.remove()},
   editD(el){deliveryForm(el.dataset.id)},editP(el){paymentForm(el.dataset.id)},
+  confirmD(el){
+    const rec=D.deliveries.find(x=>x.id===el.dataset.id);if(!rec)return;
+    rec.status='confirmed';save();closeSheet();refresh();toast(t('f.confirmed'));
+    if(API_URL)apiCall('confirmDelivery',{id:rec.id}).catch(()=>{});
+  },
+  supNew(){const v=$('#supview');if(v)v.innerHTML='';deliveryForm(null,{supplier:true});wireSupplierForm();window.scrollTo(0,0)},
   delD(el){removeRecord('D',el.dataset.id)},delP(el){removeRecord('P',el.dataset.id)},
   supplier(el){supplierSheet(el.dataset.id)},
   supAddD(el){closeSheet();S.prefSup=el.dataset.id;deliveryForm()},
@@ -1996,6 +2123,13 @@ const A={
     const fb=()=>{try{const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();done(ok)}catch(e){done(false)}};
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>done(true),fb);else fb();
   },
+  copySupLink(){
+    const txt=supplierLink();
+    const done=ok=>toast(t(ok?'r.copied':'r.copyFail'));
+    const fb=()=>{try{const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();done(ok)}catch(e){done(false)}};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>done(true),fb);else fb();
+  },
+  openSupLink(){window.open(supplierLink(),'_blank')},
   printAct(){
     const {sup,date}=S.recon;
     if(!SUP[sup]){toast(t('r.none'));return}
@@ -2046,6 +2180,7 @@ document.addEventListener('change',e=>{
   else if(ds.hex)syncColorInputs();
 });
 document.addEventListener('keydown',e=>{
+  if(S.supplier)return;
   if(e.key==='Escape'&&S.sheet){closeSheet();return}
   if(!S.unlocked&&S.mode==='pin'&&!e.ctrlKey&&!e.metaKey){
     if(/^[0-9]$/.test(e.key))pinKey(e.key);
@@ -2056,7 +2191,9 @@ document.addEventListener('keydown',e=>{
 /* ================= старт ================= */
 load();
 applyPrefs();
-if(store.get('snab-session')==='1'){
+const QS=new URLSearchParams(location.search);
+if(QS.get('mode')==='supplier'){bootSupplier(QS)}
+else if(store.get('snab-session')==='1'){
   S.unlocked=true;S.animHome=true;S.screen='home';
   $('#app').hidden=false;
   renderChrome();renderView(false);
