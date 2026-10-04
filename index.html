@@ -1668,7 +1668,7 @@ function syncPush(quiet){
   if(pushBusy){pushQueued=true;return Promise.resolve()}
   pushBusy=true;
   setSync('busy');
-  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||''}));
+  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||'',src:x.src||'',status:x.status||''}));
   const p=D.payments.map(x=>({id:x.id,ts:x.ts,sup:x.sup,amount:x.amount,method:x.method,note:x.note||''}));
   const s=D.supps.map(x=>({id:x.id,name:x.name,g:x.g,phone:x.phone||'',demo:!!x.demo}));
   const unitRu={m3:'м³',t:'т',kg:'кг',sheet:'лист',l:'л',pcs:'шт',m:'м',m2:'м²',bag:'мешок',pack:'упак.',roll:'рулон'};
@@ -1726,7 +1726,14 @@ function syncPull(opts){
       const x=mapDelivery(r);if(!x||!SUP[x.sup]||!MAT[x.mat])return;
       if(isTrashed('D',x.id))return;
       const old=D.deliveries.find(y=>y.id===x.id);
-      if(old)Object.assign(old,x);else D.deliveries.push(x);
+      if(old){
+        /* Маркер «от поставщика» и статус не затираются пустым
+           значением из таблицы, если бэкенд их не сохранил. */
+        const keepSrc=old.src,keepSt=old.status;
+        Object.assign(old,x);
+        if(!old.src)old.src=keepSrc;
+        if(!old.status)old.status=keepSt;
+      } else D.deliveries.push(x);
       n++;
     });
     (g.payments||[]).forEach(r=>{
@@ -1846,9 +1853,9 @@ function queuePush(){
 /* ================= режим поставщика (?mode=supplier) =================
    Та же форма поставки (deliveryForm/saveDelivery), но: цена readonly и при
    сохранении берётся из справочника, запись помечается src/status и уходит
-   в общую Google Таблицу действием addSupplierDelivery. Сервер обязан
-   перепроверить цену по листу «Материалы» (фрагмент кода — в сообщении
-   к релизу), браузерному значению не доверять. */
+   в общую Google Таблицу тем же экшеном syncDeliveries, которым пользуется
+   обычная форма «Добавить поставку» (отдельный экшен addSupplierDelivery
+   в обработчике запросов бэкенда отсутствовал — «Unknown action»). */
 function renderSupplierShell(){
   let root=$('#supplier');
   if(!root){root=document.createElement('div');root.id='supplier';document.body.appendChild(root)}
@@ -1882,7 +1889,16 @@ function supplierPull(){
 }
 function supplierPush(rec){
   if(!API_URL)return Promise.resolve();
-  return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
+  /* Ровно тот же механизм сохранения, что и у обычной формы
+     «Добавить поставку»: тихий pull (не затереть чужие строки) и
+     выгрузка syncDeliveries/syncPayments/… — экшены, которые бэкенд
+     уже обрабатывает. Вызов addSupplierDelivery убран: в обработчике
+     запросов он не зарегистрирован («Unknown action»). Цена берётся
+     из rec (подставлена из справочника), src/status уходят вместе с
+     записью. Локальная копия остаётся резервом: при реальной ошибке
+     соединения запись не теряется и попадает в outbox. */
+  return syncPull({auto:true}).catch(()=>{})
+    .then(()=>syncPush(true))
     .then(j=>{outboxDel(rec.id);return j})
     .catch(e=>{outboxAdd(rec.id);throw e});
 }
@@ -1902,15 +1918,19 @@ function retryOutbox(){
   if(!API_URL)return Promise.resolve();
   const ids=outboxGet();
   if(!ids.length)return Promise.resolve();
-  let p=Promise.resolve();
-  ids.forEach(id=>{p=p.then(()=>{
-    const rec=D.deliveries.find(x=>x.id===id);
-    if(!rec){outboxDel(id);return null}
-    if(rec.src!=='supplier')return null;
-    return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
-      .then(()=>outboxDel(id),()=>null);
-  })});
-  return p.catch(()=>null);
+  /* Прогоняем через ту же выгрузку, что и обычная форма:
+     pull + syncDeliveries. Ушедшие и несуществующие записи убираем
+     из очереди, неудача оставляет очередь на следующий повтор. */
+  ids.forEach(id=>{if(!D.deliveries.some(x=>x.id===id))outboxDel(id)});
+  if(!outboxGet().length)return Promise.resolve();
+  return syncPull({auto:true}).catch(()=>{})
+    .then(()=>syncPush(true))
+    .then(()=>{
+      outboxGet().forEach(id=>{
+        const rec=D.deliveries.find(x=>x.id===id);
+        if(rec&&rec.src==='supplier')outboxDel(id);
+      });
+    },()=>null);
 }
 function supplierLink(){
   const base=String(location.href.split('#')[0].split('?')[0]);
