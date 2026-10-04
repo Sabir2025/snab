@@ -221,6 +221,10 @@ h1,h2,h3,p{margin:0}
 .item-val b{font:400 18px/1.15 var(--display);letter-spacing:-.01em}
 .item-val small{font:400 12px var(--font);color:var(--ink2)}
 .item .warn{display:inline-flex;align-items:center;gap:6px;color:var(--danger);font:500 12px var(--font)}
+/* стрелки-раскрытия в строках: только позиционирование (отступ справа и центр
+   по вертикали). Размеры строк, разметка и логика раскрытия без изменений. */
+.srow,.item{padding-right:36px}
+.srow::after,.item::after{content:"";position:absolute;right:14px;top:50%;width:9px;height:9px;flex:none;border:0;border-right:2px solid var(--ink2);border-top:2px solid var(--ink2);border-radius:1px;transform:translateY(-50%) rotate(45deg);pointer-events:none}
 .empty{padding:36px 12px;text-align:center;color:var(--ink2);display:grid;gap:12px;justify-items:center}
 .empty b{font:400 22px var(--display);color:var(--ink);letter-spacing:-.01em}
 .sumcard{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--surface);margin-bottom:6px;box-shadow:0 6px 18px rgba(20,20,25,.05)}
@@ -638,7 +642,6 @@ ru:{
 'st.apiUrl':'URL веб-приложения','st.apiHint':'Вставьте URL веб-приложения из инструкции (шаг 4). Он заканчивается на /exec.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Проверить связь','st.push':'Выгрузить','st.pull':'Загрузить',
 'st.syncOff':'Таблица не подключена','st.syncOn':'Связь с таблицей установлена','st.syncErr':'Ошибка: {e}','st.busy':'Соединение…',
-'st.restoring':'Восстановление связи…','st.noConn':'Нет соединения — ожидание синхронизации',
 'st.noUrl':'Сначала укажите URL веб-приложения',
 'st.testOk':'Связь с таблицей работает','st.testFail':'Не удалось связаться: {e}',
 'st.pushOk':'Выгружено: {n}','st.pushFail':'Выгрузка не удалась: {e}',
@@ -710,7 +713,6 @@ kz:{
 'st.apiUrl':'Веб-қосымша URL','st.apiHint':'Нұсқаулықтан (4-қадам) веб-қосымша URL-ды енгізіңіз. Ол /exec-пен аяқталады.','st.apiPh':'https://script.google.com/macros/s/…/exec',
 'st.test':'Байланысты тексеру','st.push':'Жіберу','st.pull':'Жүктеу',
 'st.syncOff':'Кесте қосылмаған','st.syncOn':'Кестемен байланыс орнатылды','st.syncErr':'Қате: {e}','st.busy':'Қосылу…',
-'st.restoring':'Байланыс қалпына келтірілуде…','st.noConn':'Байланыс жоқ — синхрондау күтілуде',
 'st.noUrl':'Алдымен веб-қосымша URL көрсетіңіз',
 'st.testOk':'Кестемен байланыс жұмыс істейді','st.testFail':'Байланысу мүмкін болмады: {e}',
 'st.pushOk':'Жіберілді: {n}','st.pushFail':'Жіберу сәтсіз: {e}',
@@ -837,23 +839,11 @@ const num=v=>{const x=parseFloat(String(v==null?'':v).replace(/[\s\u00A0]/g,'').
 /* ================= данные приложения ================= */
 let D;
 function seedData(){
-  return {deliveries:[],payments:[],log:[],supps:[],mats:[],groups:[],trash:{d:[],p:[]}};
-}
-function cleanTrash(){
-  /* Tombstones удалённых записей: не дают загрузке из таблицы вернуть
-     удалённую поставку/оплату обратно. Хранятся в том же хранилище. */
-  if(!D||typeof D!=='object')return;
-  if(!D.trash||typeof D.trash!=='object')D.trash={d:[],p:[]};
-  ['d','p'].forEach(k=>{
-    let a=D.trash[k];
-    if(!Array.isArray(a))a=[];
-    a=a.filter(x=>typeof x==='string'&&x).slice(-1000);
-    D.trash[k]=a;
-  });
+  return {deliveries:[],payments:[],log:[],supps:[],mats:[],groups:[]};
 }
 function load(){
   const raw=store.get('snab-demo-v2');
-  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[];if(!D.groups)D.groups=[];cleanTrash()}catch(e){D=seedData()}}
+  if(raw){try{D=JSON.parse(raw);if(!D||!D.deliveries||!D.payments)throw 0;if(!D.log)D.log=[];if(!D.supps)D.supps=[];if(!D.mats)D.mats=[];if(!D.groups)D.groups=[]}catch(e){D=seedData()}}
   else D=seedData();
   rebuildCatalog();
 }
@@ -1501,30 +1491,8 @@ function saveDelivery(f){
   if(old)Object.assign(old,rec);else D.deliveries.push(rec);
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${mname(MAT[rec.mat])}, ${qtyFmt(rec.qty)} ${unitOf(MAT[rec.mat])}`);
   save();
-  if(isSup){supplierSubmit(f,rec);return}
+  if(isSup){closeSheet();supplierDone();toast(t('sup.sent'));supplierPush(rec).catch(()=>{});return}
   closeSheet();refresh();toast(t('f.saved'));queuePush();
-}
-/* Отправка поставщика с подтверждением сервера: экран успеха — только
-   после реального сохранения в общем источнике. При ошибке форма
-   и введённые данные остаются на месте, запись уже лежит в локальной
-   базе и встанет в очередь повторной отправки. */
-function supplierSubmit(f,rec){
-  if(f.dataset.sending==='1')return;
-  f.dataset.sending='1';
-  const btn=f.querySelector('.actions .btn.primary');
-  if(btn)btn.disabled=true;
-  const err=$('#fErr');
-  if(err)err.textContent=t('st.busy');
-  supplierPush(rec).then(
-    ()=>{closeSheet();supplierDone();toast(t('sup.sent'))},
-    e=>{
-      f.dataset.sending='';
-      if(btn)btn.disabled=false;
-      const msg=String((e&&e.message)||e);
-      if(err)err.textContent=t('sup.pushFail',{e:msg});
-      else toast(t('sup.pushFail',{e:msg}));
-    }
-  );
 }
 
 /* ---- форма оплаты ---- */
@@ -1563,56 +1531,14 @@ function savePayment(f){
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${money(rec.amount)}`);
   save();closeSheet();refresh();toast(t('f.saved'));queuePush();
 }
-function trashAdd(kind,id){
-  if(!D.trash)cleanTrash();
-  const k=kind==='D'?'d':'p';
-  const a=D.trash[k];
-  if(!a.includes(id)){a.push(id);if(a.length>1000)a.splice(0,a.length-1000)}
-}
-function trashDel(kind,id){
-  if(!D.trash)return;
-  const a=D.trash[kind==='D'?'d':'p'];
-  if(Array.isArray(a)){const i=a.indexOf(id);if(i>=0)a.splice(i,1)}
-}
-function isTrashed(kind,id){
-  const a=D.trash&&(kind==='D'?D.trash.d:D.trash.p);
-  return Array.isArray(a)&&a.includes(id);
-}
-function restoreDeleted(kind,rec){
-  const list=kind==='D'?D.deliveries:D.payments;
-  trashDel(kind,rec.id);
-  if(!list.some(x=>x.id===rec.id))list.push(rec);
-  if(D.log.length&&D.log[0].k==='del')D.log.shift();
-  save();refresh();queuePush();
-}
 function removeRecord(kind,id){
   const list=kind==='D'?D.deliveries:D.payments,i=list.findIndex(x=>x.id===id);
   if(i<0)return;
-  /* Единая операция удаления: сначала — из постоянного хранилища
-     (тот же localStorage-блоб, что переживает F5), затем мгновенный
-     пересчёт всех показателей через refresh(), затем — передача
-     удаления в общий источник (Google Таблица). */
   const rec=list.splice(i,1)[0];
-  trashAdd(kind,id);
   addLog('del',kind==='D'?`${SUP[rec.sup].name}, ${mname(MAT[rec.mat])}, ${qtyFmt(rec.qty)} ${unitOf(MAT[rec.mat])}`:`${SUP[rec.sup].name}, ${money(rec.amount)}`);
   save();closeSheet();refresh();
-  flushDelete(kind,rec);
-  toast(t('f.deleted'),t('f.undo'),()=>restoreDeleted(kind,rec));
-}
-/* Доставка удаления до общего источника. Tombstone в D.trash гарантирует,
-   что следующая загрузка не вернёт запись, даже если сервер на момент
-   удаления недоступен или выгрузка задержалась. */
-function flushDelete(kind,rec){
-  if(!API_URL)return;
-  const act=kind==='D'?'deleteDelivery':'deletePayment';
-  apiCall(act,{id:rec.id}).catch(()=>{});
-  syncPull({auto:true}).catch(()=>{}).then(()=>syncPush(true)).then(()=>{},()=>{
-    /* Сервер отклонил удаление, а сеть есть: показываем ошибку и
-       предлагаем вернуть запись, а не теряем её молча. В офлайне запись
-       остаётся удалённой локально, выгрузка повторится автоматически. */
-    if(typeof navigator!=='undefined'&&navigator.onLine===false)return;
-    toast(t('st.pushFail',{e:SYNC.msg||'fail'}),t('f.undo'),()=>restoreDeleted(kind,rec));
-  });
+  queuePush();
+  toast(t('f.deleted'),t('f.undo'),()=>{list.push(rec);D.log.shift();save();refresh();queuePush()});
 }
 function refresh(){renderView(false)}
 
@@ -1635,9 +1561,8 @@ function apiCall(action,payload){
 }
 function setSync(state,msg){SYNC.state=state;SYNC.msg=msg||'';updateSyncUI()}
 function syncChipHTML(){
-  const busy=SYNC.state==='busy'||(API_URL&&SYNC.state==='off');
   const cls=SYNC.state==='ok'?'on':SYNC.state==='err'?'err':'';
-  const lbl=busy?t('st.chipBusy'):SYNC.state==='err'?t('st.chipErr'):SYNC.state==='ok'?t('st.chipOk'):t('st.chipOff');
+  const lbl=SYNC.state==='busy'?t('st.chipBusy'):SYNC.state==='err'?t('st.chipErr'):SYNC.state==='ok'?t('st.chipOk'):t('st.chipOff');
   return `<button class="syncchip ${cls}" id="syncChip" data-act="syncInfo" title="${esc(t('st.sync'))}">${ic('cloud')}<span>${esc(lbl)}</span></button>`;
 }
 function syncStatHTML(){
@@ -1646,7 +1571,7 @@ function syncStatHTML(){
   else if(SYNC.state==='busy'){cls='off';icon='cloud';txt=t('st.busy')}
   else if(SYNC.state==='err'){cls='err';icon='alert';txt=t('st.syncErr',{e:SYNC.msg})}
   else if(SYNC.state==='ok'){cls='ok';icon='check';txt=t('st.syncOn')}
-  else{cls='off';icon='cloud';txt=t('st.restoring')}
+  else{cls='off';icon='cloud';txt=t('st.syncOff')}
   return `<div class="syncstat ${cls}" id="syncStat">${ic(icon)}<span>${esc(txt)}</span></div>`;
 }
 function updateSyncUI(){
@@ -1660,42 +1585,29 @@ function syncTest(){
   setSync('busy');
   fetch(API_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
     .then(j=>{if(!j||j.success!==true)throw new Error('fail');setSync('ok');toast(t('st.testOk'))})
-    .catch(e=>{const raw=String(e.message||e);const m=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',m);toast(t('st.testFail',{e:m}))});
+    .catch(e=>{const m=String(e.message||e);setSync('err',m);toast(t('st.testFail',{e:m}))});
 }
-let pushBusy=false,pushDirty=false,pushQueued=false,pushRetryT=0;
 function syncPush(quiet){
   if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve()}
-  if(pushBusy){pushQueued=true;return Promise.resolve()}
-  pushBusy=true;
   setSync('busy');
-  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||'',src:x.src||'',status:x.status||''}));
+  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||''}));
   const p=D.payments.map(x=>({id:x.id,ts:x.ts,sup:x.sup,amount:x.amount,method:x.method,note:x.note||''}));
   const s=D.supps.map(x=>({id:x.id,name:x.name,g:x.g,phone:x.phone||'',demo:!!x.demo}));
   const unitRu={m3:'м³',t:'т',kg:'кг',sheet:'лист',l:'л',pcs:'шт',m:'м',m2:'м²',bag:'мешок',pack:'упак.',roll:'рулон'};
   const m=D.mats.map(x=>({id:x.id,ru:x.ru,kz:x.kz||x.ru,g:x.g,sup:x.sup,unit:unitRu[x.unit]||x.unit,price:x.price}));
   const gr=(D.groups||[]).map(x=>({id:x.id,name:x.name,color:x.color}));
-  const delD=(D.trash&&D.trash.d)||[],delP=(D.trash&&D.trash.p)||[];
-  return apiCall('syncDeliveries',{deliveries:d,deletedDeliveries:delD})
-    .then(()=>apiCall('syncPayments',{payments:p,deletedPayments:delP}))
+  return apiCall('syncDeliveries',{deliveries:d})
+    .then(()=>apiCall('syncPayments',{payments:p}))
     .then(()=>apiCall('syncSuppliers',{suppliers:s}))
     .then(()=>apiCall('syncMaterials',{materials:m}))
     .then(()=>apiCall('syncGroups',{groups:gr}))
-    .then(()=>{pushBusy=false;pushDirty=false;clearTimeout(pushRetryT);setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}));
-      if(pushQueued){pushQueued=false;queuePush()}})
-    .catch(e=>{pushBusy=false;pushDirty=true;const raw=String(e.message||e);const msg=(typeof navigator!=='undefined'&&navigator.onLine===false)?t('st.noConn'):raw;setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));
-      /* Неудавшаяся выгрузка не забывается: повторим автоматически,
-         иначе таблица и телефон разъедутся. */
-      clearTimeout(pushRetryT);pushRetryT=setTimeout(()=>{if(API_URL)syncPush(true).catch(()=>{})},30000);throw e});
+    .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}))})
+    .catch(e=>{const msg=String(e.message||e);setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
 }
-let pullBusy=false;
-function syncPull(opts){
-  const auto=!!(opts&&opts.auto);
-  const quiet=auto||opts===true||!!(opts&&opts.quiet);
-  if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve(0)}
-  if(pullBusy)return Promise.resolve(0);
-  pullBusy=true;
+function syncPull(){
+  if(!API_URL){toast(t('st.noUrl'));return}
   setSync('busy');
-  return apiCall('getAllData').then(res=>{
+  apiCall('getAllData').then(res=>{
     const g=(res&&res.data)||{};
     let n=0;
     (g.groups||[]).forEach(r=>{
@@ -1724,21 +1636,12 @@ function syncPull(opts){
     rebuildCatalog();
     (g.deliveries||[]).forEach(r=>{
       const x=mapDelivery(r);if(!x||!SUP[x.sup]||!MAT[x.mat])return;
-      if(isTrashed('D',x.id))return;
       const old=D.deliveries.find(y=>y.id===x.id);
-      if(old){
-        /* Маркер «от поставщика» и статус не затираются пустым
-           значением из таблицы, если бэкенд их не сохранил. */
-        const keepSrc=old.src,keepSt=old.status;
-        Object.assign(old,x);
-        if(!old.src)old.src=keepSrc;
-        if(!old.status)old.status=keepSt;
-      } else D.deliveries.push(x);
+      if(old)Object.assign(old,x);else D.deliveries.push(x);
       n++;
     });
     (g.payments||[]).forEach(r=>{
       const x=mapPayment(r);if(!x||!SUP[x.sup])return;
-      if(isTrashed('P',x.id))return;
       const old=D.payments.find(y=>y.id===x.id);
       if(old)Object.assign(old,x);else D.payments.push(x);
       n++;
@@ -1750,53 +1653,11 @@ function syncPull(opts){
       D.log.push({ts,k,t:tt});n++;
     });
     D.log.sort(byDesc);D.log=D.log.slice(0,40);
-    /* Удалённые записи не воскресают загрузкой: вычищаем и локальные
-       остатки с tombstone (например, запись вернулась до появления метки). */
-    const dn=D.deliveries.length,pn=D.payments.length;
-    D.deliveries=D.deliveries.filter(x=>!isTrashed('D',x.id));
-    D.payments=D.payments.filter(x=>!isTrashed('P',x.id));
-    if(D.deliveries.length!==dn||D.payments.length!==pn)rebuildCatalog();
     rebuildCatalog();save();
-    pullBusy=false;
     setSync('ok');
-    /* Полная загрузка должна обновить любой открытый экран (а не только
-       настройки), чтобы веб и мобильная версии показывали одинаковые данные. */
-    if(S.unlocked&&!S.supplier)refresh();
-    if(!quiet)toast(n?t('st.pullOk',{n}):t('st.pullEmpty'));
-    return n;
-  }).catch(e=>{
-    pullBusy=false;
-    /* Подключение НЕ считается удалённым: URL сохранён, показываем
-       «Нет соединения / ожидание», повторная привязка не нужна. */
-    const offline=typeof navigator!=='undefined'&&navigator.onLine===false;
-    const raw=String((e&&e.message)||e);
-    const msg=offline?t('st.noConn'):(/failed to fetch|networkerror|load failed/i.test(raw)?t('st.noConn'):raw);
-    setSync('err',msg);
-    if(!quiet)toast(t('st.pullFail',{e:msg}));
-    throw e;
-  });
-}
-/* Первоначальная загрузка ВСЕХ существующих записей при старте и
-   тихое восстановление связи с ранее подключённой таблицей.
-   Не создаёт отдельных баз: работает с тем же D/localStorage. */
-let bootPullT=0;
-function bootSync(){
-  if(!API_URL||S.supplier)return;
-  clearTimeout(bootPullT);
-  setSync(API_URL&&SYNC.state==='ok'?'ok':'busy');
-  updateSyncUI();
-  syncPull({auto:true}).catch(()=>{
-    /* Таблица временно недоступна — остаёмся на том же URL и
-       пробуем снова через 30 с без действий пользователя. */
-    clearTimeout(bootPullT);
-    bootPullT=setTimeout(()=>{if(API_URL)bootSync()},30000);
-  });
-}
-let pullSoonT=0;
-function queuePullSoon(ms){
-  if(!API_URL||S.supplier)return;
-  clearTimeout(pullSoonT);
-  pullSoonT=setTimeout(()=>{syncPull({auto:true}).catch(()=>{})},ms||2500);
+    if(S.screen==='settings')renderView(false);
+    toast(n?t('st.pullOk',{n}):t('st.pullEmpty'));
+  }).catch(e=>{const msg=String(e.message||e);setSync('err',msg);toast(t('st.pullFail',{e:msg}))});
 }
 function localTs(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function sheetTs(v){
@@ -1844,18 +1705,15 @@ let pushT=0;
 function queuePush(){
   if(!API_URL)return;
   clearTimeout(pushT);
-  /* Сначала тихо подтягиваем чужие строки (в т.ч. поставки поставщика),
-     потом выгружаем объединённое состояние — иначе можно затереть на
-     сервере запись, которую ещё не успели загрузить. */
-  pushT=setTimeout(()=>{if(API_URL)syncPull({auto:true}).catch(()=>{}).then(()=>{if(API_URL)syncPush(true).catch(()=>{})})},1500);
+  pushT=setTimeout(()=>{if(API_URL)syncPush(true).catch(()=>{})},1500);
 }
 
 /* ================= режим поставщика (?mode=supplier) =================
    Та же форма поставки (deliveryForm/saveDelivery), но: цена readonly и при
    сохранении берётся из справочника, запись помечается src/status и уходит
-   в общую Google Таблицу тем же экшеном syncDeliveries, которым пользуется
-   обычная форма «Добавить поставку» (отдельный экшен addSupplierDelivery
-   в обработчике запросов бэкенда отсутствовал — «Unknown action»). */
+   в общую Google Таблицу действием addSupplierDelivery. Сервер обязан
+   перепроверить цену по листу «Материалы» (фрагмент кода — в сообщении
+   к релизу), браузерному значению не доверять. */
 function renderSupplierShell(){
   let root=$('#supplier');
   if(!root){root=document.createElement('div');root.id='supplier';document.body.appendChild(root)}
@@ -1889,18 +1747,9 @@ function supplierPull(){
 }
 function supplierPush(rec){
   if(!API_URL)return Promise.resolve();
-  /* Ровно тот же механизм сохранения, что и у обычной формы
-     «Добавить поставку»: тихий pull (не затереть чужие строки) и
-     выгрузка syncDeliveries/syncPayments/… — экшены, которые бэкенд
-     уже обрабатывает. Вызов addSupplierDelivery убран: в обработчике
-     запросов он не зарегистрирован («Unknown action»). Цена берётся
-     из rec (подставлена из справочника), src/status уходят вместе с
-     записью. Локальная копия остаётся резервом: при реальной ошибке
-     соединения запись не теряется и попадает в outbox. */
-  return syncPull({auto:true}).catch(()=>{})
-    .then(()=>syncPush(true))
+  return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
     .then(j=>{outboxDel(rec.id);return j})
-    .catch(e=>{outboxAdd(rec.id);throw e});
+    .catch(e=>{outboxAdd(rec.id);toast(t('sup.pushFail',{e:String(e.message||e)}));throw e});
 }
 /* Очередь неотправленных поставок поставщика: запись всегда остаётся в
    локальной базе, отправка в Таблицу повторяется позже и никогда не
@@ -1918,19 +1767,15 @@ function retryOutbox(){
   if(!API_URL)return Promise.resolve();
   const ids=outboxGet();
   if(!ids.length)return Promise.resolve();
-  /* Прогоняем через ту же выгрузку, что и обычная форма:
-     pull + syncDeliveries. Ушедшие и несуществующие записи убираем
-     из очереди, неудача оставляет очередь на следующий повтор. */
-  ids.forEach(id=>{if(!D.deliveries.some(x=>x.id===id))outboxDel(id)});
-  if(!outboxGet().length)return Promise.resolve();
-  return syncPull({auto:true}).catch(()=>{})
-    .then(()=>syncPush(true))
-    .then(()=>{
-      outboxGet().forEach(id=>{
-        const rec=D.deliveries.find(x=>x.id===id);
-        if(rec&&rec.src==='supplier')outboxDel(id);
-      });
-    },()=>null);
+  let p=Promise.resolve();
+  ids.forEach(id=>{p=p.then(()=>{
+    const rec=D.deliveries.find(x=>x.id===id);
+    if(!rec){outboxDel(id);return null}
+    if(rec.src!=='supplier')return null;
+    return apiCall('addSupplierDelivery',{delivery:{id:rec.id,ts:rec.ts,sup:rec.sup,mat:rec.mat,qty:rec.qty,note:rec.note||''}})
+      .then(()=>outboxDel(id),()=>null);
+  })});
+  return p.catch(()=>null);
 }
 function supplierLink(){
   const base=String(location.href.split('#')[0].split('?')[0]);
@@ -2228,7 +2073,6 @@ function unlock(){
   try{store.set('snab-session','1')}catch(e){}
   $('#app').hidden=false;
   renderChrome();renderView(false);
-  if(API_URL)queuePullSoon(1500);
   const l=$('#lock');l.classList.remove('in');l.classList.add('out');
   setTimeout(()=>{if(S.unlocked)l.hidden=true},reduce?0:560);
 }
@@ -2369,7 +2213,7 @@ document.addEventListener('input',e=>{
   if(el.id==='q'){S.q=el.value;fillDeliveries()}
   else if(el.id==='bName'){P.brand.name=el.value;brandChanged()}
   else if(el.id==='bSub'){P.brand.sub=el.value;savePrefsSoon();applyPrefs()}
-  else if(el.id==='apiUrl'){setApiUrl(el.value);if(String(el.value||'').trim())queuePullSoon(2000);else{clearTimeout(bootPullT);clearTimeout(pullSoonT)}}
+  else if(el.id==='apiUrl'){setApiUrl(el.value)}
   else if(ds.col)setColor(ds.col,el.value,el);
   else if(ds.hex){const v=el.value.trim(),w=v[0]==='#'?v:'#'+v;if(isHex(w))setColor(ds.hex,w,el)}
 });
@@ -2403,15 +2247,6 @@ else if(store.get('snab-session')==='1'){
   $('#lock').classList.add('in');
 }
 setTimeout(()=>retryOutbox().catch(()=>{}),2000);
-/* Постоянное подключение: при старте автоматически восстанавливаем связь
-   с ранее сохранённой таблицей и подтягиваем ВСЕ существующие записи.
-   Дальше — тихая двунаправленная синхронизация без действий пользователя. */
-setTimeout(()=>{if(API_URL)bootSync()},1200);
-setInterval(()=>{if(API_URL&&!S.supplier&&S.unlocked&&typeof navigator!=='undefined'&&navigator.onLine===false)return;if(pushDirty&&API_URL&&!S.supplier)syncPush(true).catch(()=>{});if(API_URL&&!S.supplier&&S.unlocked&&!pullBusy)syncPull({auto:true}).catch(()=>{});if(API_URL&&S.supplier)retryOutbox().catch(()=>{})},60000);
-window.addEventListener('online',()=>{if(API_URL){if(S.supplier)retryOutbox().catch(()=>{});else{if(pushDirty)syncPush(true).catch(()=>{});bootSync()}}});
-window.addEventListener('offline',()=>{if(API_URL)setSync('err',t('st.noConn'))});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&API_URL&&S.unlocked)queuePullSoon(1500)});
-window.addEventListener('focus',()=>{if(API_URL&&S.unlocked)queuePullSoon(2000)});
 window.addEventListener('pagehide',savePrefs);
 if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{applyColors();if(S.unlocked&&S.screen==='settings')renderView(false)});
 })();
