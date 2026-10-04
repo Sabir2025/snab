@@ -1161,7 +1161,7 @@ function saveSupplier(f){
     const nm=$('.mr-name',r).value.trim(),price=num($('.mr-price',r).value);
     if(!nm&&!price)continue;
     if(!nm){err.textContent=t('s.nameErr');$('.mr-name',r).focus();return}
-    if(!(price>0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
+    if(!(price>=0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
     mats.push({nm,unit:$('.mr-unit',r).value,price:Math.round(price)});
   }
   if(!mats.length){err.textContent=t('s.matsErr');return}
@@ -1201,7 +1201,7 @@ function saveSupplierEdit(f,id){
       continue;
     }
     if(!nm){err.textContent=t('s.nameErr');$('.mr-name',r).focus();return}
-    if(!(price>0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
+    if(!(price>=0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
     if(mid)seen[mid]=1;
     mats.push({mid,nm,unit:$('.mr-unit',r).value,price:Math.round(price)});
   }
@@ -1482,7 +1482,7 @@ function saveDelivery(f){
   const isSup=f.dataset.sup==='1';
   let price=num(f.elements.price.value);
   if(isSup){const cm=MAT[f.elements.mat.value];price=cm?Math.round(num(cm.price)):0}
-  if(!(price>0)){err.textContent=t('f.priceErr');f.elements.price.focus();return}
+  if(!(price>=0)){err.textContent=t('f.priceErr');f.elements.price.focus();return}
   const date=f.elements.date.value||dstr(new Date()),now=new Date();
   const old=f.dataset.id?D.deliveries.find(x=>x.id===f.dataset.id):null;
   const time=old?old.ts.slice(11):`${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -1545,19 +1545,30 @@ function refresh(){renderView(false)}
 /* ================= синхронизация с Google Таблицей ================= */
 const API_KEY='snab-api-url';
 let API_URL=String(store.get(API_KEY)||'').trim();
-let SYNC={state:'off',msg:''};
+let SYNC={state:API_URL?'busy':'off',msg:''};
 function setApiUrl(v){
-  API_URL=String(v||'').trim();
+  const next=String(v||'').trim();
+  if(next&&!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(next))return;
+  if(next===API_URL)return;
+  if(API_URL&&next!==API_URL&&!confirm(P.lang==='kz'?'Кесте байланысын өзгерту керек пе?':'Отключить или заменить текущую таблицу?'))return;
+  API_URL=next;
   if(API_URL)store.set(API_KEY,API_URL);else store.del(API_KEY);
-  if(!API_URL)SYNC={state:'off',msg:''};
-  updateSyncUI();
+  setSync(API_URL?'busy':'off');
+  if(API_URL)setTimeout(()=>syncPull(true),0);
 }
-function apiCall(action,payload){
-  if(!API_URL)return Promise.reject(new Error('no-url'));
-  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify(Object.assign({action},payload||{}))})
-    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
-    .then(j=>{if(!j||j.success===false)throw new Error(String((j&&j.error)||'fail'));return j});
+async function apiCall(action,payload){
+  const url=API_URL;
+  if(!url)throw new Error('no-url');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      signal:controller.signal,body:JSON.stringify(Object.assign({action},payload||{}))});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(url!==API_URL)throw new Error('Подключение изменено');
+    if(!j||j.success===false||j.error)throw new Error(String((j&&j.error)||'fail'));
+    return j;
+  }finally{clearTimeout(timer)}
 }
 function setSync(state,msg){SYNC.state=state;SYNC.msg=msg||'';updateSyncUI()}
 function syncChipHTML(){
@@ -1571,7 +1582,7 @@ function syncStatHTML(){
   else if(SYNC.state==='busy'){cls='off';icon='cloud';txt=t('st.busy')}
   else if(SYNC.state==='err'){cls='err';icon='alert';txt=t('st.syncErr',{e:SYNC.msg})}
   else if(SYNC.state==='ok'){cls='ok';icon='check';txt=t('st.syncOn')}
-  else{cls='off';icon='cloud';txt=t('st.syncOff')}
+  else{cls='off';icon='cloud';txt=P.lang==='kz'?'Синхрондау күтілуде':'Ожидание синхронизации'}
   return `<div class="syncstat ${cls}" id="syncStat">${ic(icon)}<span>${esc(txt)}</span></div>`;
 }
 function updateSyncUI(){
@@ -1580,17 +1591,12 @@ function updateSyncUI(){
   const st=$('#syncStat');
   if(st){const d=document.createElement('div');d.innerHTML=syncStatHTML();st.replaceWith(d.firstChild)}
 }
-function syncTest(){
-  if(!API_URL){toast(t('st.noUrl'));return}
-  setSync('busy');
-  fetch(API_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
-    .then(j=>{if(!j||j.success!==true)throw new Error('fail');setSync('ok');toast(t('st.testOk'))})
-    .catch(e=>{const m=String(e.message||e);setSync('err',m);toast(t('st.testFail',{e:m}))});
-}
-function syncPush(quiet){
+function syncTest(){return syncPull(false)}
+function syncPush(quiet){return syncPull(!!quiet)}
+function uploadSnapshot(quiet){
   if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve()}
   setSync('busy');
-  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||''}));
+  const d=D.deliveries.map(x=>({id:x.id,ts:x.ts,sup:x.sup,mat:x.mat,qty:x.qty,price:x.price,note:x.note||'',src:x.src||'',status:x.status||''}));
   const p=D.payments.map(x=>({id:x.id,ts:x.ts,sup:x.sup,amount:x.amount,method:x.method,note:x.note||''}));
   const s=D.supps.map(x=>({id:x.id,name:x.name,g:x.g,phone:x.phone||'',demo:!!x.demo}));
   const unitRu={m3:'м³',t:'т',kg:'кг',sheet:'лист',l:'л',pcs:'шт',m:'м',m2:'м²',bag:'мешок',pack:'упак.',roll:'рулон'};
@@ -1604,60 +1610,78 @@ function syncPush(quiet){
     .then(()=>{setSync('ok');if(!quiet)toast(t('st.pushOk',{n:d.length+p.length+s.length+m.length+gr.length}))})
     .catch(e=>{const msg=String(e.message||e);setSync('err',msg);if(!quiet)toast(t('st.pushFail',{e:msg}));throw e});
 }
-function syncPull(){
-  if(!API_URL){toast(t('st.noUrl'));return}
-  setSync('busy');
-  apiCall('getAllData').then(res=>{
-    const g=(res&&res.data)||{};
-    let n=0;
-    (g.groups||[]).forEach(r=>{
-      const gid=String(r['ID']||'').trim(),gnm=String(r['Название']||'').trim();
-      if(!gid||!gnm)return;
-      let gcol=String(r['Цвет']||'').trim();if(!isHex(gcol))gcol='#8a8a93';
-      D.groups=D.groups||[];
-      const old=D.groups.find(y=>y.id===gid);
-      if(old)Object.assign(old,{name:gnm,color:gcol.toLowerCase()});else D.groups.push({id:gid,name:gnm,color:gcol.toLowerCase()});
-      n++;
-    });
-    (g.suppliers||[]).forEach(r=>{
-      const x=mapSupplier(r);if(!x)return;
-      if(BASE_SUPPLIERS.some(b=>b.id===x.id))return;
-      const old=D.supps.find(y=>y.id===x.id);
-      if(old)Object.assign(old,x);else D.supps.push(x);
-      n++;
-    });
-    (g.materials||[]).forEach(r=>{
-      const x=mapMaterial(r);if(!x)return;
-      if(BASE_MATERIALS.some(b=>b.id===x.id))return;
-      const old=D.mats.find(y=>y.id===x.id);
-      if(old)Object.assign(old,x);else D.mats.push(x);
-      n++;
-    });
-    rebuildCatalog();
-    (g.deliveries||[]).forEach(r=>{
-      const x=mapDelivery(r);if(!x||!SUP[x.sup]||!MAT[x.mat])return;
-      const old=D.deliveries.find(y=>y.id===x.id);
-      if(old)Object.assign(old,x);else D.deliveries.push(x);
-      n++;
-    });
-    (g.payments||[]).forEach(r=>{
-      const x=mapPayment(r);if(!x||!SUP[x.sup])return;
-      const old=D.payments.find(y=>y.id===x.id);
-      if(old)Object.assign(old,x);else D.payments.push(x);
-      n++;
-    });
-    (g.log||[]).forEach(r=>{
-      const ts=sheetTs(r['ДатаВремя']),k=String(r['Тип']||'').trim(),tt=String(r['Описание']||'').trim();
-      if(!ts||!['add','edit','del'].includes(k)||!tt)return;
-      if(D.log.some(l=>l.ts===ts&&l.k===k&&l.t===tt))return;
-      D.log.push({ts,k,t:tt});n++;
-    });
-    D.log.sort(byDesc);D.log=D.log.slice(0,40);
+// One shared source; local storage is an offline cache and pending-change journal.
+const DATA_KEYS=['groups','supps','mats','deliveries','payments'];
+let syncFlight=null;
+const cloneData=x=>JSON.parse(JSON.stringify(x));
+function baseKey(){return 'snab-sync-base-v3:'+API_URL}
+function readBase(){try{return JSON.parse(store.get(baseKey())||'null')}catch(e){return null}}
+function dataSame(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+function mergeRows(remote,local,base){
+  const result=new Map(remote.map(x=>[x.id,x]));
+  const before=new Map((base||[]).map(x=>[x.id,x]));
+  const current=new Map(local.map(x=>[x.id,x]));
+  // Only locally changed rows override the server. Absence in an established
+  // baseline is a deletion, not a reason to restore an old cached record.
+  for(const x of local){
+    if(before.has(x.id)?!dataSame(x,before.get(x.id)):!result.has(x.id))result.set(x.id,x);
+  }
+  for(const id of before.keys())if(!current.has(id))result.delete(id);
+  return [...result.values()];
+}
+function sheetRow(r,fields){
+  const out={...r};for(const [key,alias] of Object.entries(fields))if(out[key]==null)out[key]=r[alias];return out;
+}
+function decodeSnapshot(res){
+  const g=res&&res.data;
+  if(!g||!Array.isArray(g.deliveries)||!Array.isArray(g.payments)||!Array.isArray(g.suppliers)||!Array.isArray(g.materials))throw new Error('Неполный ответ getAllData: данные сохранены, повторим загрузку');
+  const decode=(rows,fn,fields)=>rows.map(r=>{const x=fn(sheetRow(r,fields));if(!x)throw new Error('Не удалось прочитать запись '+String(r.ID||r.id||'')+'. Исходные данные сохранены');return x});
+  const remote={
+    groups:(g.groups||[]).map(r=>({id:String(r.ID??r.id??''),name:String(r['Название']??r.name??''),color:r['Цвет']||r.color||'#8a8a93'})),
+    supps:decode(g.suppliers,mapSupplier,{'ID':'id','Название':'name','Группа':'g','Телефон':'phone','Демо':'demo'}),
+    mats:decode(g.materials,mapMaterial,{'ID':'id','НазваниеRU':'ru','НазваниеKZ':'kz','Группа':'g','ПоставщикID':'sup','Единица':'unit','Цена':'price'}),
+    deliveries:decode(g.deliveries,mapDelivery,{'ID':'id','ДатаВремя':'ts','ПоставщикID':'sup','МатериалID':'mat','Количество':'qty','Цена':'price','Примечание':'note','Источник':'src','Статус':'status'}),
+    payments:decode(g.payments,mapPayment,{'ID':'id','ДатаВремя':'ts','ПоставщикID':'sup','Сумма':'amount','Способ':'method','Примечание':'note'})
+  };
+  // Keep historical operations visible even when their catalogue row is absent.
+  for(const r of [...remote.deliveries,...remote.payments])if(!remote.supps.some(x=>x.id===r.sup))remote.supps.push(cloneData((D.supps||[]).find(x=>x.id===r.sup)||{id:r.sup,name:r.sup,g:'raw',phone:'',demo:false}));
+  for(const r of remote.deliveries)if(!remote.mats.some(x=>x.id===r.mat))remote.mats.push(cloneData((D.mats||[]).find(x=>x.id===r.mat)||{id:r.mat,ru:r.mat,kz:r.mat,g:'raw',sup:r.sup,unit:'pcs',price:r.price}));
+  return remote;
+}
+function syncPull(quiet=false){
+  if(!API_URL){if(!quiet)toast(t('st.noUrl'));return Promise.resolve()}
+  if(syncFlight)return syncFlight;
+  const url=API_URL,key=baseKey();
+  syncFlight=(async()=>{
+    setSync('busy');
+    const res=await apiCall('getAllData');
+    const remote=decodeSnapshot(res),base=readBase();
+    if(!store.get('snab-before-sync-v3'))store.set('snab-before-sync-v3',JSON.stringify(D));
+    const prior=JSON.stringify(D);
+    for(const k of DATA_KEYS)D[k]=mergeRows(remote[k],D[k]||[],base&&base[k]);
+    for(const r of (res.data.log||[])){
+      const ts=sheetTs(r['ДатаВремя']??r.ts),k=String(r['Тип']??r.k??''),text=String(r['Описание']??r.t??'');
+      if(ts&&text&&!D.log.some(x=>x.ts===ts&&x.k===k&&x.t===text))D.log.push({ts,k,t:text});
+    }
     rebuildCatalog();save();
+    // Persist the observed baseline before sending: an interrupted upload can
+    // be safely retried without losing pending local changes.
+    store.set(key,JSON.stringify(remote));
+    const snapshot=cloneData(D);
+    const dirty=DATA_KEYS.some(k=>!dataSame(snapshot[k],remote[k]));
+    if(dirty&&!S.supplier){
+      await uploadSnapshot(true);
+      if(url!==API_URL)return;
+      store.set(key,JSON.stringify(snapshot));
+    }
     setSync('ok');
-    if(S.screen==='settings')renderView(false);
-    toast(n?t('st.pullOk',{n}):t('st.pullEmpty'));
-  }).catch(e=>{const msg=String(e.message||e);setSync('err',msg);toast(t('st.pullFail',{e:msg}))});
+    if(prior!==JSON.stringify(D)&&S.unlocked&&!S.supplier&&S.screen!=='settings')renderView(false);
+    if(!quiet)toast(t('st.pullOk',{n:D.deliveries.length+D.payments.length}));
+  })().catch(e=>{
+    if(url===API_URL)setSync('err',(P.lang==='kz'?'Байланыс жоқ. Қайта қосылу күтілуде: ':'Нет соединения / ожидание синхронизации: ')+String(e.message||e));
+    if(!quiet)toast(t('st.pullFail',{e:String(e.message||e)}));
+  }).finally(()=>{syncFlight=null});
+  return syncFlight;
 }
 function localTs(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function sheetTs(v){
@@ -1674,20 +1698,20 @@ function sheetTs(v){
 function mapDelivery(r){
   const id=String(r['ID']||'').trim(),ts=sheetTs(r['ДатаВремя']),
     sup=String(r['ПоставщикID']||'').trim(),mat=String(r['МатериалID']||'').trim(),
-    qty=parseFloat(r['Количество']),price=parseFloat(r['Цена']);
-  if(!id||!ts||!sup||!mat||!(qty>0)||!(price>0))return null;
+    qty=num(r['Количество']),price=num(r['Цена']);
+  if(!id||!ts||!sup||!mat||!(qty>0)||!(price>=0))return null;
   return {id,ts,sup,mat,qty,price,note:String(r['Примечание']||''),src:String(r['Источник']||'').trim(),status:String(r['Статус']||'').trim()};
 }
 function mapPayment(r){
   const id=String(r['ID']||'').trim(),ts=sheetTs(r['ДатаВремя']),
-    sup=String(r['ПоставщикID']||'').trim(),amount=Math.round(parseFloat(r['Сумма']));
+    sup=String(r['ПоставщикID']||'').trim(),amount=Math.round(num(r['Сумма']));
   if(!id||!ts||!sup||!(amount>0))return null;
   return {id,ts,sup,amount,method:String(r['Способ']||'').trim()==='cash'?'cash':'transfer',note:String(r['Примечание']||'')};
 }
 function mapSupplier(r){
   const id=String(r['ID']||'').trim(),name=String(r['Название']||'').trim();
   if(!id||!name)return null;
-  const g=normGroup(r['Группа']);
+  const g=String(r['Группа']||'raw').trim();
   const dm=r['Демо'];
   return {id,name,g,phone:String(r['Телефон']||''),demo:dm===true||String(dm).toUpperCase()==='TRUE'};
 }
@@ -1695,10 +1719,10 @@ const UNIT_FROM_SHEET={'м³':'m3','м3':'m3','m3':'m3','т':'t','t':'t','кг':
 function mapMaterial(r){
   const id=String(r['ID']||'').trim(),ru=String(r['НазваниеRU']||'').trim();
   if(!id||!ru)return null;
-  const g=normGroup(r['Группа']);
+  const g=String(r['Группа']||'raw').trim();
   const sup=String(r['ПоставщикID']||'').trim();
   const unit=UNIT_FROM_SHEET[String(r['Единица']||'').trim().toLowerCase()]||UNIT_FROM_SHEET[String(r['Единица']||'').trim()]||'m3';
-  const price=Math.round(parseFloat(r['Цена'])||0);
+  const price=Math.round(num(r['Цена']));
   return {id,ru,kz:String(r['НазваниеKZ']||ru),g,sup,unit,price};
 }
 let pushT=0;
@@ -2213,13 +2237,14 @@ document.addEventListener('input',e=>{
   if(el.id==='q'){S.q=el.value;fillDeliveries()}
   else if(el.id==='bName'){P.brand.name=el.value;brandChanged()}
   else if(el.id==='bSub'){P.brand.sub=el.value;savePrefsSoon();applyPrefs()}
-  else if(el.id==='apiUrl'){setApiUrl(el.value)}
+  else if(el.id==='apiUrl'){/* Commit on change, never erase a saved URL while typing. */}
   else if(ds.col)setColor(ds.col,el.value,el);
   else if(ds.hex){const v=el.value.trim(),w=v[0]==='#'?v:'#'+v;if(isHex(w))setColor(ds.hex,w,el)}
 });
 document.addEventListener('change',e=>{
   const el=e.target,ds=el.dataset||{};
-  if(el.id==='logoIn'){handleLogo(el.files&&el.files[0]);el.value=''}
+  if(el.id==='apiUrl'){setApiUrl(el.value)}
+  else if(el.id==='logoIn'){handleLogo(el.files&&el.files[0]);el.value=''}
   else if(el.id==='bShowName'){P.brand.showName=el.checked;brandChanged()}
   else if(ds.hex)syncColorInputs();
 });
@@ -2236,6 +2261,7 @@ document.addEventListener('keydown',e=>{
 load();
 applyPrefs();
 const QS=new URLSearchParams(location.search);
+if(QS.get('api')&&!API_URL){try{let v=QS.get('api').replace(/-/g,'+').replace(/_/g,'/');while(v.length%4)v+='=';setApiUrl(atob(v))}catch(e){}}
 if(QS.get('mode')==='supplier'){bootSupplier(QS)}
 else if(store.get('snab-session')==='1'){
   S.unlocked=true;S.animHome=true;S.screen='home';
@@ -2246,7 +2272,11 @@ else if(store.get('snab-session')==='1'){
   renderLock();
   $('#lock').classList.add('in');
 }
-setTimeout(()=>retryOutbox().catch(()=>{}),2000);
+setTimeout(()=>{if(API_URL)syncPull(true);retryOutbox().catch(()=>{})},0);
+setInterval(()=>{if(API_URL&&!document.hidden){syncPull(true);retryOutbox().catch(()=>{})}},15000);
+window.addEventListener('online',()=>{if(API_URL)syncPull(true);retryOutbox().catch(()=>{})});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&API_URL)syncPull(true)});
+window.addEventListener('storage',e=>{if(e.key===API_KEY){API_URL=String(store.get(API_KEY)||'');setSync(API_URL?'busy':'off');if(API_URL)syncPull(true)}});
 window.addEventListener('pagehide',savePrefs);
 if(mq&&mq.addEventListener)mq.addEventListener('change',()=>{applyColors();if(S.unlocked&&S.screen==='settings')renderView(false)});
 })();
