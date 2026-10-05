@@ -542,6 +542,13 @@ html{scrollbar-gutter:stable}
 }
 @media print{.shell{height:auto;margin:0}}
 
+
+.cloud-controls.cloud-invite{align-items:flex-end}
+.cloud-controls.cloud-invite .btn{min-height:44px;height:44px;padding:0 12px;white-space:nowrap}
+.cloud-invite #inviteRole{height:44px;min-height:44px}
+.cloud-csv{display:grid;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
+.boot-state{display:grid;gap:16px;text-align:center;justify-items:center}
+@media(max-width:480px){.cloud-invite{grid-template-columns:1fr}.cloud-controls.cloud-invite .btn{width:100%}}
 </style>
 </head>
 <body>
@@ -614,6 +621,12 @@ function normGroup(v){
   return 'raw';
 }
 const UNITS={m3:{ru:'м³',kz:'м³'},t:{ru:'т',kz:'т'},kg:{ru:'кг',kz:'кг'},sheet:{ru:'лист',kz:'парақ'},l:{ru:'л',kz:'л'},pcs:{ru:'шт',kz:'дана'},m:{ru:'м',kz:'м'},m2:{ru:'м²',kz:'м²'},bag:{ru:'мешок',kz:'қап'},pack:{ru:'упак.',kz:'қаптама'},roll:{ru:'рулон',kz:'орам'}};
+function normalizeUnit(value){
+ const key=String(value||'').trim().toLowerCase().replace(/\.$/,'');
+ if(Object.hasOwn(UNITS,key))return key;
+ const aliases={'м³':'m3','м3':'m3','м²':'m2','м2':'m2','т':'t','кг':'kg','л':'l','литр':'l','шт':'pcs','штука':'pcs','штук':'pcs','дана':'pcs','м':'m','метр':'m','лист':'sheet','парақ':'sheet','мешок':'bag','мешка':'bag','қап':'bag','упак':'pack','упаковка':'pack','қаптама':'pack','рулон':'roll','рулона':'roll','орам':'roll'};
+ if(aliases[key])return aliases[key];throw Error('Неизвестная единица измерения: '+String(value));
+}
 const BASE_MATERIALS=[];
 const BASE_SUPPLIERS=[];
 const MATERIALS=[],SUPPLIERS=[],MAT={},SUP={};
@@ -872,7 +885,7 @@ const loc=()=>P.lang==='kz'?'kk':'ru';
 function dtf(o){try{return new Intl.DateTimeFormat(loc(),o)}catch(e){return new Intl.DateTimeFormat('ru',o)}}
 const tsd=s=>new Date(s.replace(' ','T'));
 const amt=d=>Math.round(d.qty*d.price);
-const unitOf=m=>UNITS[m.unit][P.lang];
+const unitOf=m=>UNITS[normalizeUnit(m.unit)][P.lang];
 const mname=m=>m[P.lang]||m.ru;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const byDesc=(a,b)=>b.ts<a.ts?-1:b.ts>a.ts?1:0;
@@ -1173,7 +1186,7 @@ function matRowHTML(m){
   m=m||{};
   return `<div class="matrow" data-mid="${m.id||''}">
     <input class="mr-name" maxlength="48" autocomplete="off" placeholder="${esc(t('f.material'))}" value="${esc(m.ru||'')}">
-    <select class="mr-unit">${Object.keys(UNITS).map(u=>`<option value="${u}" ${m.unit===u?'selected':''}>${esc(UNITS[u][P.lang])}</option>`).join('')}</select>
+    <select class="mr-unit">${Object.keys(UNITS).map(u=>`<option value="${u}" ${m.unit&&normalizeUnit(m.unit)===u?'selected':''}>${esc(UNITS[u][P.lang])}</option>`).join('')}</select>
     <input class="mr-price" inputmode="decimal" autocomplete="off" placeholder="${esc(t('s.price'))}" value="${m.price?nf.format(m.price):''}">
     <button type="button" class="rbtn" data-act="matDel" aria-label="${esc(t('s.matDel'))}">${ic('close','sm')}</button>
   </div>`;
@@ -1209,12 +1222,12 @@ function saveSupplier(f){
     if(!nm&&!price)continue;
     if(!nm){err.textContent=t('s.nameErr');$('.mr-name',r).focus();return}
     if(!(price>=0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
-    mats.push({nm,unit:$('.mr-unit',r).value,price:Math.round(price)});
+    mats.push({nm,unit:normalizeUnit($('.mr-unit',r).value),price:Math.round(price)});
   }
   if(!mats.length){err.textContent=t('s.matsErr');return}
   const id='u'+Date.now().toString(36);
   D.supps.push({id,name,g,phone:f.elements.phone.value.trim()});
-  mats.forEach((m,i)=>D.mats.push({id:id+'m'+i,g,sup:id,ru:m.nm,kz:m.nm,unit:m.unit,price:m.price}));
+  mats.forEach((m,i)=>D.mats.push({id:id+'m'+i,g,sup:id,ru:m.nm,kz:m.nm,unit:normalizeUnit(m.unit),price:m.price}));
   rebuildCatalog();addLog('add',`${name}, ${mats.length}`);save();closeSheet();refresh();toast(t('f.saved'));queuePush();
 }
 function editSupplierForm(id){
@@ -1250,7 +1263,7 @@ function saveSupplierEdit(f,id){
     if(!nm){err.textContent=t('s.nameErr');$('.mr-name',r).focus();return}
     if(!(price>=0)){err.textContent=t('f.priceErr');$('.mr-price',r).focus();return}
     if(mid)seen[mid]=1;
-    mats.push({mid,nm,unit:$('.mr-unit',r).value,price:Math.round(price)});
+    mats.push({mid,nm,unit:normalizeUnit($('.mr-unit',r).value),price:Math.round(price)});
   }
   if(!mats.length){err.textContent=t('s.matsErr');return}
   for(const m of MATERIALS.filter(x=>x.sup===id)){
@@ -2323,6 +2336,7 @@ function refreshCloudView(){
 const SB_URL='https://ghjdfluroczhrjymofrq.supabase.co';
 const SB_KEY='sb_publishable_tTD6ZGXwb9eDMifD4EpEGQ_V0Ffcc0i';
 const SITE_URL='https://sabir2025.github.io/snab/';
+let cloudStarting=true;
 let sb=null, cloudUser=null, company=null, context=null, cloudBase={},cloudPending={},cloudFlight=null,cloudMode='login',cloudReady=false,cloudConflict=false;
 const CLOUD_KEYS=['groups','supps','mats','deliveries','payments','log'];
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -2444,12 +2458,72 @@ function renderSettings(){
  ${cloudConflict?'<button class="btn danger" data-cloud="acceptServer">Сохранить локальную копию и принять данные сервера</button>':''}</section>
  <section class="card cloud-card cloud-wide"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
  ${company.role==='owner'?'<div class="btnrow"><button class="btn" data-cloud="legacyImport">Перенести старую историю этого браузера</button><button class="btn" data-cloud="googleImport">Загрузить историю из Google Таблицы</button></div><label class="fld">Импорт резервной копии JSON<input id="cloudImport" type="file" accept=".json,application/json"></label>':''}
+ <div class="cloud-csv"><h3>Таблицы CSV</h3><label class="fld"><span>Тип данных</span><select id="csvKind">${Object.entries(CSV_NAMES).map(([key,name])=>`<option value="${key}">${name}</option>`).join('')}</select></label><div class="cloud-controls"><button class="btn" data-cloud="csvTemplate">Скачать шаблон CSV</button><button class="btn" data-cloud="csvExport">Выгрузить данные CSV</button></div>${company.role==='owner'?'<label class="fld"><span>Загрузить заполненный CSV</span><input id="csvImport" type="file" accept=".csv,text/csv"></label>':''}<p class="hintp">Выберите тип данных, скачайте шаблон, заполните строки под заголовком и загрузите CSV. Порядок: группы → поставщики → материалы → поставки и оплаты. ID для связей можно посмотреть в выгрузке. Единицы: м³, т, кг, лист, л, шт, м, м², мешок, упак., рулон. Дата: ДД.ММ.ГГГГ. Сохраняйте как CSV UTF-8.</p></div>
  <p class="hintp">Импорт добавляет отсутствующие ID. Совпадающие ID не заменяются. Перед импортом автоматически скачивается копия.</p></section>
- ${company.role==='owner'?'<section class="card cloud-card cloud-wide"><h2>Сотрудники</h2><div class="cloud-controls"><label class="fld"><span>Роль сотрудника</span><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select></label><button class="btn" data-cloud="invite">Создать код приглашения</button></div><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
+ ${company.role==='owner'?'<section class="card cloud-card cloud-wide"><h2>Сотрудники</h2><div class="cloud-controls cloud-invite"><label class="fld"><span>Роль сотрудника</span><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select></label><button class="btn" data-cloud="invite">Создать код приглашения</button></div><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
  <section class="card cloud-card"><h2>Присоединиться к другой компании</h2><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg"></p></section>
  ${context.admin?'<section class="card cloud-card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
  <section class="card" id="colorsCard">${colorsHTML()}</section><section class="card cloud-card"><h2>Аккаунт</h2><div class="cloud-controls"><button class="btn" data-cloud="resetAccount">Письмо для смены пароля</button><button class="btn" data-cloud="logout">Выйти</button></div></section></div>`;
 }
+const CSV_SCHEMAS={
+ groups:[['ID','id'],['Название','name'],['Цвет','color']],
+ supps:[['ID','id'],['Название','name'],['Группа ID','g'],['Телефон','phone']],
+ mats:[['ID','id'],['Поставщик ID','sup'],['Название RU','ru'],['Название KZ','kz'],['Группа ID','g'],['Единица','unit'],['Цена','price']],
+ deliveries:[['ID','id'],['Дата','ts'],['Поставщик ID','sup'],['Материал ID','mat'],['Количество','qty'],['Цена','price'],['Примечание','note']],
+ payments:[['ID','id'],['Дата','ts'],['Поставщик ID','sup'],['Сумма','amount'],['Способ','method'],['Примечание','note']]
+};
+const CSV_NAMES={groups:'Группы',supps:'Поставщики',mats:'Материалы',deliveries:'Поставки',payments:'Оплаты'};
+function csvEscape(value){const s=String(value??'');return /[;",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+function csvDocument(kind,rows=[]){return '\uFEFF'+[CSV_SCHEMAS[kind].map(x=>x[0]).join(';'),...rows.map(r=>CSV_SCHEMAS[kind].map(([label,key])=>csvEscape(key==='unit'?unitOf(r):r[key])).join(';'))].join('\r\n')+'\r\n'}
+function downloadCSV(kind,template){
+ const data=csvDocument(kind,template?[]:D[kind]);const a=document.createElement('a'),url=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='snab-'+kind+(template?'-template':'')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function parseCSV(text){
+ text=String(text).replace(/^\uFEFF/,'');
+ const first=text.split(/\r?\n/,1)[0];let quoted=false,sems=0,commas=0;
+ for(let i=0;i<first.length;i++){const ch=first[i];if(ch==='"')quoted=!quoted;else if(!quoted&&ch===';')sems++;else if(!quoted&&ch===',')commas++}
+ const delimiter=sems>=commas?';':',';const rows=[];let row=[],field='',inQuotes=false,ended=false;
+ for(let i=0;i<text.length;i++){
+  const ch=text[i];if(inQuotes){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++}else{inQuotes=false;ended=true}}else field+=ch;continue}
+  if(ch==='"'){if(field!==''||ended)throw Error('Некорректные кавычки CSV');inQuotes=true}
+  else if(ch===delimiter){row.push(field);field='';ended=false}
+  else if(ch==='\r'||ch==='\n'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(x=>x.trim()))rows.push(row);row=[];field='';ended=false}
+  else{if(ended&&ch.trim())throw Error('Лишние символы после кавычек');if(!ended)field+=ch}
+ }
+ if(inQuotes)throw Error('Не закрыты кавычки в CSV');row.push(field);if(row.some(x=>x.trim()))rows.push(row);return rows;
+}
+function csvNumber(v,label){const s=String(v??'').replace(/[\s\u00a0\u202f]/g,'').replace(',','.');if(!/^\d+(?:\.\d+)?$/.test(s)||!Number.isFinite(Number(s)))throw Error('Некорректное число: '+label);return Number(s)}
+function csvDate(v){
+ let s=String(v||'').trim(),m=/^(\d{2})[./](\d{2})[./](\d{4})(.*)$/.exec(s);if(m)s=m[3]+'-'+m[2]+'-'+m[1]+m[4];
+ const x=/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/.exec(s);if(!x)throw Error('Дата: используйте ДД.ММ.ГГГГ или ГГГГ-ММ-ДД');
+ const date=new Date(Date.UTC(+x[1],+x[2]-1,+x[3]));if(date.getUTCFullYear()!==+x[1]||date.getUTCMonth()!==+x[2]-1||date.getUTCDate()!==+x[3]||+(x[4]||0)>23||+(x[5]||0)>59)throw Error('Некорректная дата');
+ return x[1]+'-'+x[2]+'-'+x[3]+' '+(x[4]||'12')+':'+(x[5]||'00');
+}
+function csvData(kind,text){
+ const schema=CSV_SCHEMAS[kind];if(!schema)throw Error('Выберите тип данных');const table=parseCSV(text);if(table.length<2)throw Error('Заполните строки под заголовком');
+ const headers=table[0].map(x=>x.trim());if(headers.length!==schema.length||new Set(headers).size!==headers.length||schema.some(([name])=>!headers.includes(name)))throw Error('Столбцы не соответствуют шаблону «'+CSV_NAMES[kind]+'»');
+ const result=[];const ids=new Set();
+ for(let i=1;i<table.length;i++){
+  try{
+   const line=table[i];if(line.length!==headers.length)throw Error('Неверное количество столбцов');const x={};for(const [label,key] of schema)x[key]=String(line[headers.indexOf(label)]).trim();
+   x.id=x.id||'csv-'+crypto.randomUUID();if(ids.has(x.id))throw Error('Повторный ID '+x.id);ids.add(x.id);
+   const need=k=>{if(!x[k])throw Error('Не заполнено '+schema.find(y=>y[1]===k)[0])};
+   if(kind==='groups'){need('name');x.color=x.color||'#8a8a93';if(!isHex(x.color))throw Error('Цвет должен быть вида #8a8a93')}
+   if(['supps','mats'].includes(kind)){x.g=x.g||'raw';if(!BASE_GROUPS.includes(x.g)&&!D.groups.some(g=>g.id===x.g))throw Error('Группа ID отсутствует: '+x.g)}
+   if(kind==='supps'){need('name');x.demo=false}
+   if(['mats','deliveries','payments'].includes(kind)){need('sup');if(!D.supps.some(s=>s.id===x.sup))throw Error('Поставщик ID отсутствует: '+x.sup)}
+   if(kind==='mats'){need('ru');x.kz=x.kz||x.ru;x.unit=normalizeUnit(x.unit);x.price=csvNumber(x.price,'Цена')}
+   if(['deliveries','payments'].includes(kind))x.ts=csvDate(x.ts);
+   if(kind==='deliveries'){need('mat');const mat=D.mats.find(m=>m.id===x.mat);if(!mat)throw Error('Материал ID отсутствует: '+x.mat);if(mat.sup!==x.sup)throw Error('Материал принадлежит другому поставщику');x.qty=csvNumber(x.qty,'Количество');if(x.qty<=0)throw Error('Количество должно быть больше нуля');x.price=csvNumber(x.price,'Цена')}
+   if(kind==='payments'){x.amount=csvNumber(x.amount,'Сумма');if(x.amount<=0)throw Error('Сумма должна быть больше нуля');const methods={cash:'cash','наличные':'cash','қолма-қол':'cash',transfer:'transfer','перевод':'transfer','аударым':'transfer'};x.method=methods[x.method.toLowerCase()];if(!x.method)throw Error('Способ: наличные или перевод')}
+   result.push(x);
+  }catch(e){throw Error('Строка '+(i+1)+': '+e.message)}
+ }
+ if(result.length>5000)throw Error('За один импорт допускается до 5000 строк');
+ const data=seedData();data[kind]=result;return data;
+}
+async function importCSV(file,kind){if(file.size>5*1024*1024)throw Error('CSV не должен превышать 5 МБ');const data=csvData(kind,await file.text());await importData(data)}
+
 async function importData(raw){
  if(company.role!=='owner')throw Error('Импорт доступен владельцу');
  const data=raw.data||raw;if(!Array.isArray(data.deliveries)||!Array.isArray(data.payments))throw Error('Ожидается резервная копия СНАБ');
@@ -2463,6 +2537,8 @@ async function importData(raw){
 }
 async function cloudClick(el){
  const act=el.dataset.cloud;
+ if(act==='csvTemplate'||act==='csvExport'){downloadCSV($('#csvKind').value,act==='csvTemplate');return}
+ if(act==='retryBoot'){location.reload();return}
  if(act==='authMode'){cloudMode=el.dataset.mode;cloudAuthMessage='';renderLock();return}
  if(act==='logout'){await lockNow();return}
  if(act==='refresh'){context=await rpc('snab_context');company=context.companies.find(c=>c.id===company.id)||company;await cloudSync();go('settings')}
@@ -2507,16 +2583,19 @@ async function cloudSubmit(f){
  if(f.id==='cloudCreate'){await rpc('snab_create_company',{p_name:f.elements.name.value});await showCompanies()}
  if(f.id==='cloudJoin'){await rpc('snab_join',{p_token:f.elements.token.value.trim()});await showCompanies()}
 }
+function renderBootState(error=''){
+ $('#lock').innerHTML=`<div class="lock-in"><div class="lock-card boot-state">${brandHTML()}<p role="status">${error?esc(error):(P.lang==='kz'?'Жүктелуде…':'Загрузка…')}</p>${error?'<button class="btn" data-cloud="retryBoot">Повторить</button>':''}</div></div>`;
+}
 async function cloudBoot(){
- load();applyPrefs();S.mode='cloud';$('#app').hidden=true;$('#lock').hidden=false;renderLock();
+ load();applyPrefs();S.mode='cloud';$('#app').hidden=true;$('#lock').hidden=false;renderBootState();
  try{
   if(!window.supabase)throw Error(authText('sdkError'));
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:(url,options={})=>fetch(url,{...options,signal:options.signal||AbortSignal.timeout(20000)})}});
   const recovery=location.hash.includes('type=recovery');
-  sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){cloudMode='recover';$('#lock').hidden=false;$('#app').hidden=true;renderLock()}else if(event==='SIGNED_OUT'){cloudReady=false;S.unlocked=false;$('#app').hidden=true;$('#lock').hidden=false;renderLock()}});
+  sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){cloudMode='recover';$('#lock').hidden=false;$('#app').hidden=true;renderLock()}else if(event==='SIGNED_OUT'&&!cloudStarting){cloudReady=false;S.unlocked=false;$('#app').hidden=true;$('#lock').hidden=false;renderLock()}});
   const {data,error}=await sb.auth.getSession();if(error)throw error;
-  if(data.session){cloudUser=data.session.user;if(recovery){cloudMode='recover';renderLock()}else await showCompanies()}
- }catch(e){$('#cloudAuthMsg').textContent=String(e.message||e)}
+  if(data.session){cloudUser=data.session.user;if(recovery){cloudMode='recover';renderLock()}else await showCompanies()}else renderLock();
+ }catch(e){renderBootState(String(e.message||e))}finally{cloudStarting=false}
  setInterval(()=>{if(cloudReady&&!document.hidden)cloudSync()},10000);
  window.addEventListener('online',cloudSync);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudSync()});
@@ -2541,6 +2620,7 @@ document.addEventListener('submit',e=>{
 },true);
 document.addEventListener('change',e=>{
  if(e.target.id==='cloudCompany')enterCompany(e.target.value).catch(err=>toast(err.message));
+ if(e.target.id==='csvImport'){const file=e.target.files[0],kind=$('#csvKind').value;if(file)importCSV(file,kind).catch(err=>toast(err.message));e.target.value='';}
  if(e.target.id==='cloudImport'){const file=e.target.files[0];if(file)file.text().then(JSON.parse).then(importData).catch(err=>toast(err.message));e.target.value='';}
 });
 document.addEventListener('focusout',()=>{if(cloudNeedsRender)setTimeout(refreshCloudView,0)});
