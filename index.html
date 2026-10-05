@@ -497,6 +497,51 @@ h1,h2,h3,p{margin:0}
 .supplier-mode .sheet [data-act="close"]{display:none!important}
 .supplier-mode input[readonly]{opacity:.8}
 
+
+/* Requested UI fixes: viewport gutters, stable pages and settings alignment. */
+html{scrollbar-gutter:stable}
+.shell{--shell-top:max(12px,env(safe-area-inset-top,0px));--shell-bottom:max(12px,env(safe-area-inset-bottom,0px));min-height:0;height:calc(100dvh - var(--shell-top) - var(--shell-bottom));margin:var(--shell-top) auto var(--shell-bottom)}
+.shell>div{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.shell .main{width:100%;flex:1;min-height:0;overflow-y:auto;scrollbar-gutter:stable}
+.shell .topbar{flex:none}
+.shell .nav{flex:none;min-height:0}
+.topbar .syncchip{width:190px;min-width:190px;flex:0 0 190px;text-overflow:ellipsis}
+.topbar .syncchip span{overflow:hidden;text-overflow:ellipsis}
+.cloud-settings>.card{min-width:0}
+.cloud-settings>.cloud-card{display:grid;gap:16px;align-content:start}
+.cloud-settings>.cloud-card .fld{margin:0;display:grid;gap:8px}
+.cloud-settings>.cloud-card p{margin:0;overflow-wrap:anywhere}
+.cloud-controls,.cloud-card .btnrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px;align-items:stretch;margin:0}
+.cloud-controls .btn,.cloud-card .btnrow .btn{width:100%;height:auto;min-height:44px;padding:12px 16px;white-space:normal;line-height:1.4;text-align:center}
+.cloud-card input,.cloud-card select{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
+.cloud-card input[type=file]{font-size:13px;overflow:hidden}
+.cloud-card #cloudStatus{min-height:24px}
+#inviteOut:empty,#teamOut:empty,#adminOut:empty,.cloud-card #cloudAuthMsg:empty{display:none}
+#teamOut,#adminOut{display:grid;gap:12px}
+.cloud-team-row{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;min-width:0}
+.cloud-card form{display:grid;gap:12px}
+.cloud-card form>.btn{justify-self:start;min-height:44px}
+#cloudAuth{display:grid;gap:14px;width:100%}
+#cloudAuth .fld{margin:0;display:grid;gap:7px}
+#cloudAuth .btn{width:100%;min-height:44px;height:auto;padding:12px 16px;white-space:normal}
+.lock-card>.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.lock-card>.btnrow .btn{height:auto;min-height:42px;padding:10px;white-space:normal}
+.lock-card>.btnrow .btn:last-child{grid-column:1/-1}
+@media(min-width:900px){
+ .shell{--shell-top:24px;--shell-bottom:24px;min-height:0;height:calc(100dvh - 48px);margin:24px auto}
+ .shell .nav{overflow-y:auto;scrollbar-width:thin}
+ .fab{bottom:40px}
+ .cloud-settings .cloud-wide{grid-column:1/-1}
+}
+@media(max-width:899.98px){
+ .shell{min-height:0;overflow:hidden}
+ .shell .topbar{position:static}
+ .shell .nav{position:static}
+ .shell .main{padding-bottom:28px}
+ .fab{bottom:calc(82px + max(12px,env(safe-area-inset-bottom,0px)))}
+}
+@media print{.shell{height:auto;margin:0}}
+
 </style>
 </head>
 <body>
@@ -951,9 +996,10 @@ function renderChrome(){
     NAV.map(([s,i])=>`<button data-act="nav" data-s="${s}" ${S.screen===s?'aria-current="page"':''}><span class="pill">${ic(i)}</span><span class="lbl">${t('nav.'+s)}</span></button>`).join('')+
     `<div class="nav-foot"><button class="nav-exit" data-act="lockNow"><span class="pill">${ic('exit')}</span><span class="lbl">${t('nav.exit')}</span></button></div>`;
 }
-function go(s){S.screen=s;renderChrome();renderView(true);window.scrollTo(0,0);const m=$('.main');if(m)m.scrollTop=0}
+function go(s){S.screen=s;renderChrome();renderView(false);window.scrollTo(0,0);const m=$('.main');if(m)m.scrollTop=0}
 
 function renderView(animate){
+  cloudNeedsRender=false;
   const fn={home:renderHome,deliveries:renderDeliveries,payments:renderPayments,suppliers:renderSuppliers,reports:renderReports,settings:renderSettings}[S.screen];
   const v=$('#view');
   v.innerHTML=fn();
@@ -2013,7 +2059,7 @@ function setLang(l){
   if(P.lang===l)return;
   P.lang=l;savePrefs();applyPrefs();
   if(S.unlocked){closeSheet();renderChrome();renderView(false)}
-  else renderLock();
+  else{const form=$('#cloudAuth'),values=form?{email:form.elements.email.value,password:form.elements.password?.value}:null;renderLock();const next=$('#cloudAuth');if(next&&values){next.elements.email.value=values.email;if(next.elements.password)next.elements.password.value=values.password||''}}
 }
 function accErr(id,msg){const e=$(id);if(e)e.textContent=msg||''}
 function savePassForm(){
@@ -2258,6 +2304,21 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+
+const CLOUD_AUTH_I18N={
+ login:['Вход в компанию','Компанияға кіру'],signup:['Регистрация','Тіркелу'],reset:['Восстановление пароля','Құпиясөзді қалпына келтіру'],recover:['Новый пароль','Жаңа құпиясөз'],email:['Электронная почта','Электрондық пошта'],password:['Пароль','Құпиясөз'],create:['Создать аккаунт','Аккаунт ашу'],send:['Отправить письмо','Хат жіберу'],save:['Сохранить пароль','Құпиясөзді сақтау'],enter:['Войти','Кіру'],loginTab:['Вход','Кіру'],forgot:['Забыли пароль?','Құпиясөзді ұмыттыңыз ба?'],wait:['Подождите…','Күте тұрыңыз…'],resetSent:['Если аккаунт существует, письмо отправлено.','Аккаунт бар болса, хат жіберілді.'],confirm:['Подтвердите email по ссылке в письме, затем войдите.','Хаттағы сілтеме арқылы электрондық поштаңызды растаңыз, содан кейін кіріңіз.'],welcome:['Добро пожаловать','Қош келдіңіз'],choose:['Создайте компанию или примите приглашение.','Компания құрыңыз немесе шақыруды қабылдаңыз.'],companyName:['Название компании','Компания атауы'],createCompany:['Создать компанию · 14 дней','Компания құру · 14 күн'],inviteCode:['Код приглашения','Шақыру коды'],join:['Присоединиться','Қосылу'],logout:['Выйти','Шығу'],sdkError:['Не загрузился компонент Supabase. Проверьте интернет и обновите страницу.','Supabase компоненті жүктелмеді. Интернетті тексеріп, бетті жаңартыңыз.'],email_not_confirmed:['Подтвердите электронную почту по ссылке в письме.','Хаттағы сілтеме арқылы электрондық поштаңызды растаңыз.'],invalid_credentials:['Неверная почта или пароль.','Электрондық пошта немесе құпиясөз қате.'],user_already_exists:['Этот email уже зарегистрирован. Войдите или восстановите пароль.','Бұл электрондық пошта тіркелген. Кіріңіз немесе құпиясөзді қалпына келтіріңіз.'],over_email_send_rate_limit:['Слишком много запросов писем. Повторите позже.','Хат жіберу сұраулары тым көп. Кейінірек қайталаңыз.'],weak_password:['Используйте более надёжный пароль, минимум 8 символов.','Кемінде 8 таңбадан тұратын сенімді құпиясөз қолданыңыз.'],email_address_invalid:['Проверьте адрес электронной почты.','Электрондық пошта мекенжайын тексеріңіз.'],signup_disabled:['Регистрация временно отключена.','Тіркелу уақытша өшірілген.'],passwordHint:['Не менее 8 символов','Кемінде 8 таңба']
+};
+function authText(key){const v=CLOUD_AUTH_I18N[key];return v?v[P.lang==='kz'?1:0]:key}
+let cloudAuthMessage='';
+function authMessage(key){cloudAuthMessage=key;const msg=$('#cloudAuthMsg');if(msg)msg.textContent=authText(key)}
+function authError(e){return CLOUD_AUTH_I18N[e?.code]?authText(e.code):String(e.message||e)}
+function viewSignature(data){return canonical(Object.fromEntries(CLOUD_KEYS.map(k=>[k,(data[k]||[]).slice().sort((a,b)=>String(a.id||'').localeCompare(String(b.id||'')))])))}
+let cloudNeedsRender=false;
+function refreshCloudView(){
+ if(!cloudNeedsRender||!S.unlocked||S.sheet||S.screen==='settings')return;
+ const active=document.activeElement;if(active&&$('#view')?.contains(active)&&active.matches('input,textarea,select,[contenteditable=true]'))return;
+ const main=$('.main'),top=main?.scrollTop||0;renderView(false);if(main)main.scrollTop=top;cloudNeedsRender=false;
+}
 /* Supabase: explicit tenant selection and durable per-record queue. */
 const SB_URL='https://ghjdfluroczhrjymofrq.supabase.co';
 const SB_KEY='sb_publishable_tTD6ZGXwb9eDMifD4EpEGQ_V0Ffcc0i';
@@ -2270,7 +2331,7 @@ function same(a,b){return canonical(a)===canonical(b)}
 function cacheKey(){return 'snab-cloud-v1:'+cloudUser.id+':'+company.id}
 function cloudStore(){if(company&&cloudUser)store.set(cacheKey(),JSON.stringify({data:D,base:cloudBase,pending:cloudPending}))}
 function recordId(x){return x.id||(x.id='log-'+crypto.randomUUID())}
-function writable(kind){if(!company)return false;if(company.paused||new Date(company.expires_at)<=new Date())return false;return company.role==='owner'||(company.role==='supply'&&kind!=='payments')||(company.role==='accountant'&&['payments','log'].includes(kind))}
+function writable(kind){if(!company)return false;if(company.paused||(!company.unlimited&&new Date(company.expires_at)<=new Date()))return false;return company.role==='owner'||(company.role==='supply'&&kind!=='payments')||(company.role==='accountant'&&['payments','log'].includes(kind))}
 function stageChanges(){
  if(!cloudReady)return;
  for(const kind of CLOUD_KEYS){
@@ -2291,23 +2352,29 @@ function stageChanges(){
 }
 async function rpc(name,args={}){const {data,error}=await sb.rpc(name,args);if(error)throw Error(error.message);return data}
 function renderLock(){
+ if(cloudUser&&context&&!context.companies.length&&cloudMode!=='recover'){renderCompanyWelcome();return}
  const signup=cloudMode==='signup',reset=cloudMode==='reset',recover=cloudMode==='recover';
- $('#lock').innerHTML=`<div class="lock-in"><div class="lock-card"><div class="lock-top">${langSeg()}</div><div class="lock-head">${brandHTML()}<p>${signup?'Регистрация':reset?'Восстановление пароля':recover?'Новый пароль':'Вход в компанию'}</p></div>
- <form id="cloudAuth"><label class="fld"><span>Email</span><input name="email" type="email" autocomplete="email" ${recover?'disabled hidden':'required'}></label>
- ${reset?'':`<label class="fld"><span>Пароль</span><input name="password" type="password" minlength="8" required autocomplete="${signup||recover?'new-password':'current-password'}"></label>`}
- <button class="btn primary" type="submit">${signup?'Создать аккаунт':reset?'Отправить письмо':recover?'Сохранить пароль':'Войти'}</button></form>
- <p id="cloudAuthMsg" class="hintp" role="status"></p><div class="btnrow"><button class="btn" data-cloud="authMode" data-mode="login">Вход</button><button class="btn" data-cloud="authMode" data-mode="signup">Регистрация</button><button class="btn" data-cloud="authMode" data-mode="reset">Забыли пароль?</button></div></div></div>`;
+ $('#lock').innerHTML=`<div class="lock-in"><div class="lock-card"><div class="lock-top">${langSeg()}</div><div class="lock-head">${brandHTML()}<p>${authText(signup?'signup':reset?'reset':recover?'recover':'login')}</p></div>
+ <form id="cloudAuth"><label class="fld"><span>${authText('email')}</span><input name="email" type="email" autocomplete="email" ${recover?'disabled hidden':'required'}></label>
+ ${reset?'':`<label class="fld"><span>${authText('password')}</span><input name="password" title="${authText('passwordHint')}" type="password" minlength="8" required autocomplete="${signup||recover?'new-password':'current-password'}"></label>`}
+ <button class="btn primary" type="submit">${authText(signup?'create':reset?'send':recover?'save':'enter')}</button></form>
+ <p id="cloudAuthMsg" class="hintp" role="status">${esc(cloudAuthMessage?authText(cloudAuthMessage):'')}</p><div class="btnrow"><button class="btn" data-cloud="authMode" data-mode="login">${authText('loginTab')}</button><button class="btn" data-cloud="authMode" data-mode="signup">${authText('signup')}</button><button class="btn" data-cloud="authMode" data-mode="reset">${authText('forgot')}</button></div></div></div>`;
 }
 function cloudStatus(){updateSyncUI()}
 function syncChipHTML(){const text=SYNC.state==='busy'?'Синхронизация…':SYNC.state==='ok'?'Supabase: подключено':SYNC.msg||'Нет соединения';return `<button id="syncChip" class="syncchip ${SYNC.state==='ok'?'on':'err'}" data-act="syncInfo" title="${esc(text)}">${ic('cloud')}<span>${esc(text)}</span></button>`}
-function setSync(state,msg=''){SYNC={state,msg};const old=$('#syncChip');if(old){const el=document.createElement('div');el.innerHTML=syncChipHTML();old.replaceWith(el.firstChild)}const status=$('#cloudStatus');if(status)status.textContent=msg||({busy:'Синхронизация…',ok:'Данные синхронизированы',off:'Ожидание подключения'}[state])}
+function setSync(state,msg=''){
+ const changed=SYNC.state!==state||SYNC.msg!==msg;SYNC={state,msg};
+ const old=$('#syncChip');if(changed&&old){const el=document.createElement('div');el.innerHTML=syncChipHTML();const fresh=el.firstChild;old.className=fresh.className;old.title=fresh.title;const span=old.querySelector('span');if(span)span.textContent=fresh.querySelector('span').textContent}
+ const status=$('#cloudStatus');if(status)status.textContent=msg||({busy:'Синхронизация…',ok:'Данные синхронизированы',off:'Ожидание подключения'}[state]);
+}
 function updateSyncUI(){const button=$('.topbar .syncchip');if(button){button.id='syncChip';setSync(SYNC.state,SYNC.msg)}}
 async function cloudSync(){
  if(!cloudReady||!company||cloudConflict)return;
  if(cloudFlight)return cloudFlight;
  cloudFlight=(async()=>{
-  setSync('busy');
+  const before=viewSignature(D);
   const sent=copy(cloudPending),batch=Object.values(sent);
+  if(batch.length||SYNC.state!=='ok')setSync('busy');
   if(batch.length){
    const result=await rpc('snab_apply',{p_company:company.id,p_changes:batch});
    for(const r of result){const key=r.kind+':'+r.id,change=sent[key];cloudBase[key]={...change,version:r.version};if(same(cloudPending[key],change))delete cloudPending[key];else if(cloudPending[key])cloudPending[key].expected=r.version}
@@ -2323,7 +2390,7 @@ async function cloudSync(){
    D[kind]=[...rows.values()];
   }
   rebuildCatalog();cloudStore();setSync('ok');
-  if(S.unlocked&&!S.sheet&&S.screen!=='settings')renderView(false);
+  if(before!==viewSignature(D)){cloudNeedsRender=true;refreshCloudView()}
  })().catch(e=>{cloudConflict=String(e.message).includes('CONFLICT');setSync('err',String(e.message));cloudStore()}).finally(()=>cloudFlight=null);
  return cloudFlight;
 }
@@ -2346,8 +2413,11 @@ async function showCompanies(){
  context=await rpc('snab_context');
  const selected=store.get('snab-company:'+cloudUser.id);
  if(context.companies.length){await enterCompany(context.companies.find(x=>x.id===selected)?.id||context.companies[0].id);return}
+ renderCompanyWelcome();
+}
+function renderCompanyWelcome(){
  $('#app').hidden=true;$('#lock').hidden=false;
- $('#lock').innerHTML=`<div class="lock-in"><div class="lock-card"><h2>Добро пожаловать</h2><p>Создайте компанию или примите приглашение.</p><form id="cloudCreate"><label class="fld">Название компании<input name="name" required maxlength="120"></label><button class="btn primary">Создать компанию · 14 дней</button></form><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg" role="status"></p><button class="btn" data-cloud="logout">Выйти</button></div></div>`;
+ $('#lock').innerHTML=`<div class="lock-in"><div class="lock-card"><div class="lock-top">${langSeg()}</div><h2>${authText('welcome')}</h2><p>${authText('choose')}</p><form id="cloudCreate"><label class="fld">${authText('companyName')}<input name="name" required maxlength="120"></label><button class="btn primary">${authText('createCompany')}</button></form><form id="cloudJoin"><label class="fld">${authText('inviteCode')}<input name="token" required></label><button class="btn">${authText('join')}</button></form><p id="cloudAuthMsg" role="status"></p><button class="btn" data-cloud="logout">${authText('logout')}</button></div></div>`;
 }
 async function lockNow(){
  if(cloudReady){stageChanges();cloudStore()}
@@ -2355,8 +2425,8 @@ async function lockNow(){
 }
 function renderSettings(){
  const b=P.brand;
- const writableNow=company&&!company.paused&&new Date(company.expires_at)>new Date();
- return `<h1 class="title">Настройки компании</h1>      <section class="card"><h2 class="h2">${t('st.brand')}</h2>
+ const writableNow=company&&!company.paused&&(company.unlimited||new Date(company.expires_at)>new Date());
+ return `<h1 class="title">Настройки компании</h1><div class="setgrid cloud-settings">      <section class="card"><h2 class="h2">${t('st.brand')}</h2>
         <label class="fld"><span>${t('st.brandName')}</span><input id="bName" maxlength="32" value="${esc(b.name)}" placeholder="СНАБ" autocomplete="off"></label>
         <label class="fld"><span>${t('st.brandSub')}</span><input id="bSub" maxlength="60" value="${esc(b.sub)}" placeholder="${esc(t('app.sub'))}" autocomplete="off"></label>
         <div class="fld"><span>${t('st.logo')}</span>
@@ -2370,15 +2440,15 @@ function renderSettings(){
         <div class="fld"><span>${t('st.lang')}</span>${langSeg()}</div>
         <div class="fld" style="margin:0"><span>${t('st.theme')}</span><div class="seg" role="group">${['auto','light','dark'].map(k=>`<button data-act="theme" data-v="${k}" aria-pressed="${P.theme===k}">${t('st.'+k)}</button>`).join('')}</div></div>
       </section>
-<section class="card"><h2>${esc(company?.name||'')}</h2><p>${esc(cloudUser?.email||'')} · ${esc(company?.role||'')}</p><p>Тариф: ${esc(company?.plan||'')} · доступ до ${esc(company?.expires_at?.slice(0,10)||'')} · ${writableNow?'Активен':'Только просмотр'}</p><label class="fld">Компания<select id="cloudCompany">${context.companies.map(c=>`<option value="${c.id}" ${c.id===company.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><button class="btn" data-cloud="refresh">Обновить данные</button><p id="cloudStatus" role="status">${esc(SYNC.msg||'')}</p><p class="hintp">Неотправленных записей: ${Object.keys(cloudPending).length}</p>
+<section class="card cloud-card"><h2>${esc(company?.name||'')}</h2><p>${esc(cloudUser?.email||'')} · ${esc(company?.role||'')}</p><p>Тариф: ${esc(company?.plan||'')} · доступ до ${company.unlimited?'Бессрочно':esc(company?.expires_at?.slice(0,10)||'')} · ${writableNow?'Активен':'Только просмотр'}</p><label class="fld">Компания<select id="cloudCompany">${context.companies.map(c=>`<option value="${c.id}" ${c.id===company.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><button class="btn" data-cloud="refresh">Обновить данные</button><p id="cloudStatus" role="status">${esc(SYNC.msg||'')}</p><p class="hintp">Неотправленных записей: ${Object.keys(cloudPending).length}</p>
  ${cloudConflict?'<button class="btn danger" data-cloud="acceptServer">Сохранить локальную копию и принять данные сервера</button>':''}</section>
- <section class="card"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
+ <section class="card cloud-card cloud-wide"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
  ${company.role==='owner'?'<div class="btnrow"><button class="btn" data-cloud="legacyImport">Перенести старую историю этого браузера</button><button class="btn" data-cloud="googleImport">Загрузить историю из Google Таблицы</button></div><label class="fld">Импорт резервной копии JSON<input id="cloudImport" type="file" accept=".json,application/json"></label>':''}
  <p class="hintp">Импорт добавляет отсутствующие ID. Совпадающие ID не заменяются. Перед импортом автоматически скачивается копия.</p></section>
- ${company.role==='owner'?'<section class="card"><h2>Сотрудники</h2><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select><button class="btn" data-cloud="invite">Создать код приглашения</button><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
- <section class="card"><h2>Присоединиться к другой компании</h2><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg"></p></section>
- ${context.admin?'<section class="card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
- <section class="card" id="colorsCard">${colorsHTML()}</section><section class="card"><h2>Аккаунт</h2><button class="btn" data-cloud="resetAccount">Письмо для смены пароля</button><button class="btn" data-cloud="logout">Выйти</button></section>`;
+ ${company.role==='owner'?'<section class="card cloud-card cloud-wide"><h2>Сотрудники</h2><div class="cloud-controls"><label class="fld"><span>Роль сотрудника</span><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select></label><button class="btn" data-cloud="invite">Создать код приглашения</button></div><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
+ <section class="card cloud-card"><h2>Присоединиться к другой компании</h2><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg"></p></section>
+ ${context.admin?'<section class="card cloud-card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
+ <section class="card" id="colorsCard">${colorsHTML()}</section><section class="card cloud-card"><h2>Аккаунт</h2><div class="cloud-controls"><button class="btn" data-cloud="resetAccount">Письмо для смены пароля</button><button class="btn" data-cloud="logout">Выйти</button></div></section></div>`;
 }
 async function importData(raw){
  if(company.role!=='owner')throw Error('Импорт доступен владельцу');
@@ -2393,7 +2463,7 @@ async function importData(raw){
 }
 async function cloudClick(el){
  const act=el.dataset.cloud;
- if(act==='authMode'){cloudMode=el.dataset.mode;renderLock();return}
+ if(act==='authMode'){cloudMode=el.dataset.mode;cloudAuthMessage='';renderLock();return}
  if(act==='logout'){await lockNow();return}
  if(act==='refresh'){context=await rpc('snab_context');company=context.companies.find(c=>c.id===company.id)||company;await cloudSync();go('settings')}
  if(act==='backup')downloadJSON({format:'snab-v1',company:company.id,data:D,pending:cloudPending},'snab-backup.json');
@@ -2408,11 +2478,12 @@ async function cloudClick(el){
  }
  if(act==='invite'){const r=await rpc('snab_team',{p_company:company.id,p_action:'invite',p_role:$('#inviteRole').value});$('#inviteOut').textContent='Одноразовый код на 7 дней: '+r.token}
  if(act==='team'){
-  const rows=await rpc('snab_team',{p_company:company.id,p_action:'list'});$('#teamOut').innerHTML=rows.map(x=>`<p>${esc(x.email)} · ${esc(x.role)} ${x.role==='owner'?'':`<select id="role-${x.user_id}">${['supply','accountant','viewer'].map(r=>`<option ${r===x.role?'selected':''}>${r}</option>`).join('')}</select><button class="btn" data-cloud="setRole" data-user="${x.user_id}">Сохранить роль</button><button class="btn" data-cloud="removeMember" data-user="${x.user_id}">Убрать из компании</button>`}</p>`).join('');
+  const rows=await rpc('snab_team',{p_company:company.id,p_action:'list'});$('#teamOut').innerHTML=rows.map(x=>`<div class="cloud-team-row"><p>${esc(x.email)} · ${esc(x.role)}</p> ${x.role==='owner'?'':`<div class="cloud-controls"><select id="role-${x.user_id}">${['supply','accountant','viewer'].map(r=>`<option ${r===x.role?'selected':''}>${r}</option>`).join('')}</select><button class="btn" data-cloud="setRole" data-user="${x.user_id}">Сохранить роль</button><button class="btn" data-cloud="removeMember" data-user="${x.user_id}">Убрать из компании</button></div>`}</div>`).join('');
  }
  if(act==='setRole'){await rpc('snab_team',{p_company:company.id,p_action:'role',p_user:el.dataset.user,p_role:$('#role-'+el.dataset.user).value});toast('Роль обновлена')}
  if(act==='removeMember'&&confirm('Убрать сотрудника из компании?')){await rpc('snab_team',{p_company:company.id,p_action:'remove',p_user:el.dataset.user});toast('Доступ отозван')}
- if(act==='admin'){const rows=await rpc('snab_admin',{p_action:'list'});$('#adminOut').innerHTML=rows.map(c=>`<section class="card"><b>${esc(c.name)}</b><p>${esc(c.email)} · ${c.members} сотрудников · ${esc(c.plan)} · до ${esc(c.expires_at.slice(0,10))} ${c.paused?'Приостановлена':''}</p><button class="btn" data-cloud="extend" data-company="${c.id}">Продлить</button><button class="btn" data-cloud="${c.paused?'resume':'pause'}" data-company="${c.id}">${c.paused?'Возобновить':'Приостановить'}</button></section>`).join('')}
+ if(act==='admin'){const rows=await rpc('snab_admin',{p_action:'list'});$('#adminOut').innerHTML=rows.map(c=>`<section class="card"><b>${esc(c.name)}</b><p>${esc(c.email)} · ${c.members} сотрудников · ${esc(c.plan)} · до ${c.unlimited?'Бессрочно':esc(c.expires_at.slice(0,10))} ${c.paused?'Приостановлена':''}</p><div class="cloud-controls"><button class="btn" data-cloud="extend" data-company="${c.id}">Продлить</button><button class="btn" data-cloud="unlimited" data-company="${c.id}" data-name="${esc(c.name)}">Бессрочный доступ</button><button class="btn" data-cloud="${c.paused?'resume':'pause'}" data-company="${c.id}">${c.paused?'Возобновить':'Приостановить'}</button></div></section>`).join('')}
+ if(act==='unlimited'&&confirm('Включить бессрочный доступ для компании «'+el.dataset.name+'»?')){await rpc('snab_admin',{p_action:'unlimited',p_company:el.dataset.company});toast('Бессрочный доступ включён');context=await rpc('snab_context');company=context.companies.find(c=>c.id===company.id)||company;go('settings');await cloudClick({dataset:{cloud:'admin'}})}
  if(act==='extend'){const days=Number(prompt('На сколько дней продлить?','30'));if(!Number.isInteger(days)||days<1)return;const plan=prompt('Название тарифа','standard');if(plan===null)return;await rpc('snab_admin',{p_action:'extend',p_company:el.dataset.company,p_days:days,p_plan:plan});toast('Подписка продлена')}
  if(['pause','resume'].includes(act)&&confirm('Изменить доступ компании?')){await rpc('snab_admin',{p_action:act,p_company:el.dataset.company});toast('Доступ изменён')}
  if(act==='resetAccount'){const {error}=await sb.auth.resetPasswordForEmail(cloudUser.email,{redirectTo:SITE_URL});if(error)throw error;toast('Письмо отправлено')}
@@ -2420,7 +2491,7 @@ async function cloudClick(el){
 }
 async function cloudSubmit(f){
  if(f.id==='cloudAuth'){
-  const msg=$('#cloudAuthMsg');msg.textContent='Подождите…';
+  const msg=$('#cloudAuthMsg');authMessage('wait');
   const email=f.elements.email.value,password=f.elements.password?.value;
   let result;
   if(cloudMode==='signup')result=await sb.auth.signUp({email,password,options:{emailRedirectTo:SITE_URL}});
@@ -2428,8 +2499,8 @@ async function cloudSubmit(f){
   else if(cloudMode==='recover')result=await sb.auth.updateUser({password});
   else result=await sb.auth.signInWithPassword({email,password});
   if(result.error)throw result.error;
-  if(cloudMode==='reset'){msg.textContent='Если аккаунт существует, письмо отправлено.';return}
-  if(cloudMode==='signup'&&!result.data.session){msg.textContent='Подтвердите email по ссылке в письме, затем войдите.';return}
+  if(cloudMode==='reset'){authMessage('resetSent');return}
+  if(cloudMode==='signup'&&!result.data.session){authMessage('confirm');return}
   const session=(await sb.auth.getSession()).data.session;cloudUser=session?.user;
   if(cloudUser){cloudMode='login';await showCompanies()}
  }
@@ -2439,7 +2510,7 @@ async function cloudSubmit(f){
 async function cloudBoot(){
  load();applyPrefs();S.mode='cloud';$('#app').hidden=true;$('#lock').hidden=false;renderLock();
  try{
-  if(!window.supabase)throw Error('Не загрузился компонент Supabase. Проверьте интернет и обновите страницу.');
+  if(!window.supabase)throw Error(authText('sdkError'));
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:(url,options={})=>fetch(url,{...options,signal:options.signal||AbortSignal.timeout(20000)})}});
   const recovery=location.hash.includes('type=recovery');
   sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){cloudMode='recover';$('#lock').hidden=false;$('#app').hidden=true;renderLock()}else if(event==='SIGNED_OUT'){cloudReady=false;S.unlocked=false;$('#app').hidden=true;$('#lock').hidden=false;renderLock()}});
@@ -2464,7 +2535,7 @@ document.addEventListener('submit',e=>{
  const f=e.target;
  if(['cloudAuth','cloudCreate','cloudJoin'].includes(f.id)){
   e.preventDefault();e.stopImmediatePropagation();const submit=f.querySelector('button[type=submit],button:not([type])');if(submit)submit.disabled=true;
-  cloudSubmit(f).catch(err=>{const msg=$('#cloudAuthMsg');if(msg)msg.textContent=String(err.message||err);else toast(String(err.message||err))}).finally(()=>{if(submit)submit.disabled=false});return;
+  cloudSubmit(f).catch(err=>{const msg=$('#cloudAuthMsg');if(msg){cloudAuthMessage=err.code&&CLOUD_AUTH_I18N[err.code]?err.code:String(err.message||err);msg.textContent=authError(err)}else toast(String(err.message||err))}).finally(()=>{if(submit)submit.disabled=false});return;
  }
  const kind={fD:'deliveries',fP:'payments',fS:'supps',fSedit:'supps'}[f.id];if(kind&&!writable(kind)){e.preventDefault();e.stopImmediatePropagation();toast('Нет прав на изменение');}
 },true);
@@ -2472,6 +2543,7 @@ document.addEventListener('change',e=>{
  if(e.target.id==='cloudCompany')enterCompany(e.target.value).catch(err=>toast(err.message));
  if(e.target.id==='cloudImport'){const file=e.target.files[0];if(file)file.text().then(JSON.parse).then(importData).catch(err=>toast(err.message));e.target.value='';}
 });
+document.addEventListener('focusout',()=>{if(cloudNeedsRender)setTimeout(refreshCloudView,0)});
 cloudBoot();
 })();
 </script>
