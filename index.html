@@ -549,6 +549,23 @@ html{scrollbar-gutter:stable}
 .cloud-csv{display:grid;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
 .boot-state{display:grid;gap:16px;text-align:center;justify-items:center}
 @media(max-width:480px){.cloud-invite{grid-template-columns:1fr}.cloud-controls.cloud-invite .btn{width:100%}}
+
+/* Settings columns: continuous stacks without empty grid cells. */
+.setgrid.cloud-settings{grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+.cloud-settings>.settings-column{display:grid;gap:20px;min-width:0;align-content:start}
+.cloud-settings .settings-column>.card{margin:0;min-width:0}
+.cloud-settings .settings-column>.cloud-card{display:grid;gap:16px;align-content:start}
+.cloud-settings .settings-column>.cloud-card .fld{margin:0;display:grid;gap:8px}
+.cloud-settings .settings-column>.cloud-card p{margin:0;overflow-wrap:anywhere}
+.cloud-control-label{font-size:13px;color:var(--ink2)}
+.cloud-settings .cloud-controls.cloud-invite{grid-template-columns:minmax(90px,1fr) minmax(0,1.5fr);align-items:center;gap:12px}
+.cloud-settings #inviteRole,.cloud-settings #inviteCreate{box-sizing:border-box;min-height:48px;height:48px;max-height:48px;margin:0;padding:0 12px;align-self:center}
+.cloud-settings #inviteCreate{font-size:13px;line-height:1.2;white-space:normal;overflow-wrap:normal}
+.password-confirm{display:grid;gap:16px}
+.password-confirm p{margin:0;line-height:1.5}
+.password-confirm .actions{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:1000px){.setgrid.cloud-settings{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.cloud-settings .cloud-controls.cloud-invite{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -2440,7 +2457,13 @@ async function lockNow(){
 function renderSettings(){
  const b=P.brand;
  const writableNow=company&&!company.paused&&(company.unlimited||new Date(company.expires_at)>new Date());
- return `<h1 class="title">Настройки компании</h1><div class="setgrid cloud-settings">      <section class="card"><h2 class="h2">${t('st.brand')}</h2>
+ return `<h1 class="title">Настройки компании</h1><div class="setgrid cloud-settings"><div class="settings-column"><section class="card cloud-card"><h2>${esc(company?.name||'')}</h2><p>${esc(cloudUser?.email||'')} · ${esc(company?.role||'')}</p><p>Тариф: ${esc(company?.plan||'')} · доступ до ${company.unlimited?'Бессрочно':esc(company?.expires_at?.slice(0,10)||'')} · ${writableNow?'Активен':'Только просмотр'}</p><label class="fld">Компания<select id="cloudCompany">${context.companies.map(c=>`<option value="${c.id}" ${c.id===company.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><button class="btn" data-cloud="refresh">Обновить данные</button><p id="cloudStatus" role="status">${esc(SYNC.msg||'')}</p><p class="hintp">Неотправленных записей: ${Object.keys(cloudPending).length}</p>
+ ${cloudConflict?'<button class="btn danger" data-cloud="acceptServer">Сохранить локальную копию и принять данные сервера</button>':''}</section>
+ <section class="card cloud-card cloud-wide"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
+ ${company.role==='owner'?'<div class="btnrow"><button class="btn" data-cloud="legacyImport">Перенести старую историю этого браузера</button><button class="btn" data-cloud="googleImport">Загрузить историю из Google Таблицы</button></div><label class="fld">Импорт резервной копии JSON<input id="cloudImport" type="file" accept=".json,application/json"></label>':''}
+ <div class="cloud-csv"><h3>Таблицы CSV</h3><label class="fld"><span>Тип данных</span><select id="csvKind">${Object.entries(CSV_NAMES).map(([key,name])=>`<option value="${key}">${name}</option>`).join('')}</select></label><div class="cloud-controls"><button class="btn" data-cloud="csvTemplate">Скачать шаблон CSV</button><button class="btn" data-cloud="csvExport">Выгрузить данные CSV</button></div>${company.role==='owner'?'<label class="fld"><span>Загрузить заполненный CSV</span><input id="csvImport" type="file" accept=".csv,text/csv"></label>':''}<p class="hintp">Выберите тип данных, скачайте шаблон, заполните строки под заголовком и загрузите CSV. Порядок: группы → поставщики → материалы → поставки и оплаты. ID для связей можно посмотреть в выгрузке. Единицы: м³, т, кг, лист, л, шт, м, м², мешок, упак., рулон. Дата: ДД.ММ.ГГГГ. Сохраняйте как CSV UTF-8.</p></div>
+ <p class="hintp">Импорт добавляет отсутствующие ID. Совпадающие ID не заменяются. Перед импортом автоматически скачивается копия.</p></section>
+<section class="card"><h2 class="h2">${t('st.brand')}</h2>
         <label class="fld"><span>${t('st.brandName')}</span><input id="bName" maxlength="32" value="${esc(b.name)}" placeholder="СНАБ" autocomplete="off"></label>
         <label class="fld"><span>${t('st.brandSub')}</span><input id="bSub" maxlength="60" value="${esc(b.sub)}" placeholder="${esc(t('app.sub'))}" autocomplete="off"></label>
         <div class="fld"><span>${t('st.logo')}</span>
@@ -2450,20 +2473,14 @@ function renderSettings(){
           <p class="hintp" style="margin:0">${t('st.logoHint')}</p></div>
         <label class="check"><input type="checkbox" id="bShowName" ${b.showName?'checked':''}><span>${t('st.showName')}</span></label>
       </section>
+</div><div class="settings-column"> ${company.role==='owner'?'<section class="card cloud-card cloud-wide"><h2>Сотрудники</h2><label class="cloud-control-label" for="inviteRole">Роль сотрудника</label><div class="cloud-controls cloud-invite"><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select><button id="inviteCreate" class="btn" data-cloud="invite">Создать код приглашения</button></div><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
+<section class="card cloud-card"><h2>Аккаунт</h2><p class="hintp">Меняйте пароль только при необходимости. Письмо со ссылкой придёт на вашу почту. Не передавайте эту ссылку другим.</p><div class="cloud-controls"><button class="btn" data-cloud="resetAccount">Письмо для смены пароля</button><button class="btn" data-cloud="logout">Выйти</button></div></section> <section class="card cloud-card"><h2>Присоединиться к другой компании</h2><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg"></p></section>
       <section class="card"><h2 class="h2">${t('st.look')}</h2>
         <div class="fld"><span>${t('st.lang')}</span>${langSeg()}</div>
         <div class="fld" style="margin:0"><span>${t('st.theme')}</span><div class="seg" role="group">${['auto','light','dark'].map(k=>`<button data-act="theme" data-v="${k}" aria-pressed="${P.theme===k}">${t('st.'+k)}</button>`).join('')}</div></div>
       </section>
-<section class="card cloud-card"><h2>${esc(company?.name||'')}</h2><p>${esc(cloudUser?.email||'')} · ${esc(company?.role||'')}</p><p>Тариф: ${esc(company?.plan||'')} · доступ до ${company.unlimited?'Бессрочно':esc(company?.expires_at?.slice(0,10)||'')} · ${writableNow?'Активен':'Только просмотр'}</p><label class="fld">Компания<select id="cloudCompany">${context.companies.map(c=>`<option value="${c.id}" ${c.id===company.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label><button class="btn" data-cloud="refresh">Обновить данные</button><p id="cloudStatus" role="status">${esc(SYNC.msg||'')}</p><p class="hintp">Неотправленных записей: ${Object.keys(cloudPending).length}</p>
- ${cloudConflict?'<button class="btn danger" data-cloud="acceptServer">Сохранить локальную копию и принять данные сервера</button>':''}</section>
- <section class="card cloud-card cloud-wide"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
- ${company.role==='owner'?'<div class="btnrow"><button class="btn" data-cloud="legacyImport">Перенести старую историю этого браузера</button><button class="btn" data-cloud="googleImport">Загрузить историю из Google Таблицы</button></div><label class="fld">Импорт резервной копии JSON<input id="cloudImport" type="file" accept=".json,application/json"></label>':''}
- <div class="cloud-csv"><h3>Таблицы CSV</h3><label class="fld"><span>Тип данных</span><select id="csvKind">${Object.entries(CSV_NAMES).map(([key,name])=>`<option value="${key}">${name}</option>`).join('')}</select></label><div class="cloud-controls"><button class="btn" data-cloud="csvTemplate">Скачать шаблон CSV</button><button class="btn" data-cloud="csvExport">Выгрузить данные CSV</button></div>${company.role==='owner'?'<label class="fld"><span>Загрузить заполненный CSV</span><input id="csvImport" type="file" accept=".csv,text/csv"></label>':''}<p class="hintp">Выберите тип данных, скачайте шаблон, заполните строки под заголовком и загрузите CSV. Порядок: группы → поставщики → материалы → поставки и оплаты. ID для связей можно посмотреть в выгрузке. Единицы: м³, т, кг, лист, л, шт, м, м², мешок, упак., рулон. Дата: ДД.ММ.ГГГГ. Сохраняйте как CSV UTF-8.</p></div>
- <p class="hintp">Импорт добавляет отсутствующие ID. Совпадающие ID не заменяются. Перед импортом автоматически скачивается копия.</p></section>
- ${company.role==='owner'?'<section class="card cloud-card cloud-wide"><h2>Сотрудники</h2><div class="cloud-controls cloud-invite"><label class="fld"><span>Роль сотрудника</span><select id="inviteRole"><option value="supply">Снабженец</option><option value="accountant">Бухгалтер</option><option value="viewer">Просмотр</option></select></label><button class="btn" data-cloud="invite">Создать код приглашения</button></div><p id="inviteOut"></p><button class="btn" data-cloud="team">Показать сотрудников</button><div id="teamOut"></div></section>':''}
- <section class="card cloud-card"><h2>Присоединиться к другой компании</h2><form id="cloudJoin"><label class="fld">Код приглашения<input name="token" required></label><button class="btn">Присоединиться</button></form><p id="cloudAuthMsg"></p></section>
- ${context.admin?'<section class="card cloud-card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
- <section class="card" id="colorsCard">${colorsHTML()}</section><section class="card cloud-card"><h2>Аккаунт</h2><div class="cloud-controls"><button class="btn" data-cloud="resetAccount">Письмо для смены пароля</button><button class="btn" data-cloud="logout">Выйти</button></div></section></div>`;
+ <section class="card" id="colorsCard">${colorsHTML()}</section> ${context.admin?'<section class="card cloud-card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
+</div></div>`;
 }
 const CSV_SCHEMAS={
  groups:[['ID','id'],['Название','name'],['Цвет','color']],
@@ -2562,7 +2579,17 @@ async function cloudClick(el){
  if(act==='unlimited'&&confirm('Включить бессрочный доступ для компании «'+el.dataset.name+'»?')){await rpc('snab_admin',{p_action:'unlimited',p_company:el.dataset.company});toast('Бессрочный доступ включён');context=await rpc('snab_context');company=context.companies.find(c=>c.id===company.id)||company;go('settings');await cloudClick({dataset:{cloud:'admin'}})}
  if(act==='extend'){const days=Number(prompt('На сколько дней продлить?','30'));if(!Number.isInteger(days)||days<1)return;const plan=prompt('Название тарифа','standard');if(plan===null)return;await rpc('snab_admin',{p_action:'extend',p_company:el.dataset.company,p_days:days,p_plan:plan});toast('Подписка продлена')}
  if(['pause','resume'].includes(act)&&confirm('Изменить доступ компании?')){await rpc('snab_admin',{p_action:act,p_company:el.dataset.company});toast('Доступ изменён')}
- if(act==='resetAccount'){const {error}=await sb.auth.resetPasswordForEmail(cloudUser.email,{redirectTo:SITE_URL});if(error)throw error;toast('Письмо отправлено')}
+ if(act==='resetAccount'){
+  openSheet(P.lang==='kz'?'Құпиясөзді өзгерту':'Смена пароля',`<div class="password-confirm"><p>${P.lang==='kz'?'Құпиясөзді өзгерткіңіз келе ме? Поштаңызға өзгерту сілтемесі жіберіледі. Сілтемеге өтпейінше қазіргі құпиясөз өзгермейді.':'Вы действительно хотите сменить пароль? На вашу почту придёт ссылка для его изменения. Пока вы не перейдёте по ссылке, текущий пароль не изменится.'}</p><p id="passwordResetError" class="err" role="alert" hidden></p><div class="actions"><button type="button" class="btn primary" data-cloud="confirmResetAccount">${P.lang==='kz'?'Иә':'Да'}</button><button type="button" class="btn ghost" data-act="close">${P.lang==='kz'?'Бас тарту':'Отмена'}</button></div></div>`,'resetAccountConfirm');
+  $('#sheetRoot [data-act="close"].btn')?.focus();return;
+ }
+ if(act==='confirmResetAccount'){
+  if(S.sheet!=='resetAccountConfirm'||!cloudUser)return;
+  const button=el;button.disabled=true;
+  try{const {error}=await sb.auth.resetPasswordForEmail(cloudUser.email,{redirectTo:SITE_URL});if(error)throw error;closeSheet();toast(P.lang==='kz'?'Хат жіберілді':'Письмо отправлено')}
+  catch(error){const message=$('#passwordResetError');if(message){message.hidden=false;message.textContent=authError(error)}else toast(authError(error))}
+  finally{button.disabled=false}
+ }
  if(act==='acceptServer'&&confirm('Скачать локальную копию и убрать неотправленные изменения?')){downloadJSON({data:D,pending:cloudPending},'snab-conflict.json');cloudPending={};cloudConflict=false;cloudStore();await cloudSync();go('settings')}
 }
 async function cloudSubmit(f){
