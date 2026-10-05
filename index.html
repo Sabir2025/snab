@@ -552,8 +552,9 @@ html{scrollbar-gutter:stable}
 
 /* Settings columns: continuous stacks without empty grid cells. */
 .setgrid.cloud-settings{grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
-.cloud-settings>.settings-column{display:grid;gap:20px;min-width:0;align-content:start}
-.cloud-settings .settings-column>.card{margin:0;min-width:0}
+.cloud-settings>.settings-column{display:grid;grid-template-columns:minmax(0,1fr);grid-auto-flow:row;gap:20px;min-width:0;align-content:start}
+.cloud-settings .settings-column>.card{margin:0;min-width:0;max-width:100%;grid-column:1;grid-row:auto}
+.cloud-settings .settings-column>#colorsCard{grid-column:1;grid-row:auto}
 .cloud-settings .settings-column>.cloud-card{display:grid;gap:16px;align-content:start}
 .cloud-settings .settings-column>.cloud-card .fld{margin:0;display:grid;gap:8px}
 .cloud-settings .settings-column>.cloud-card p{margin:0;overflow-wrap:anywhere}
