@@ -909,6 +909,16 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const byDesc=(a,b)=>b.ts<a.ts?-1:b.ts>a.ts?1:0;
 const pad=n=>String(n).padStart(2,'0');
 const dstr=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function validRecordDate(value){
+ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||''));if(!m)return false;
+ const d=new Date(0);d.setUTCFullYear(+m[1],+m[2]-1,+m[3]);d.setUTCHours(0,0,0,0);
+ return d.getUTCFullYear()===+m[1]&&d.getUTCMonth()===+m[2]-1&&d.getUTCDate()===+m[3];
+}
+function requireRecordDate(f,err){
+ if(validRecordDate(f.elements.date.value))return true;
+ err.textContent=P.lang==='kz'?'Дұрыс күнді таңдаңыз.':'Выберите корректную дату.';f.elements.date.focus();return false;
+}
+
 const shortDate=ts=>dtf({day:'2-digit',month:'2-digit'}).format(tsd(ts));
 const longDate=ts=>dtf({day:'numeric',month:'long',year:'numeric'}).format(tsd(ts));
 const num=v=>{const x=parseFloat(String(v==null?'':v).replace(/[\s\u00A0]/g,'').replace(',','.'));return isFinite(x)?x:0};
@@ -1561,7 +1571,8 @@ function saveDelivery(f){
   let price=num(f.elements.price.value);
   if(isSup){const cm=MAT[f.elements.mat.value];price=cm?Math.round(num(cm.price)):0}
   if(!(price>=0)){err.textContent=t('f.priceErr');f.elements.price.focus();return}
-  const date=f.elements.date.value||dstr(new Date()),now=new Date();
+  if(!requireRecordDate(f,err))return;
+  const date=f.elements.date.value,now=new Date();
   const old=f.dataset.id?D.deliveries.find(x=>x.id===f.dataset.id):null;
   const time=old?old.ts.slice(11):`${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const rec={id:old?old.id:'n'+crypto.randomUUID(),ts:date+' '+time,sup:f.elements.sup.value,mat:f.elements.mat.value,qty,price,note:f.elements.note.value.trim()};
@@ -1604,7 +1615,8 @@ function savePayment(f){
   const amount=Math.round(num(f.elements.amount.value)),err=$('#fErr');
   if(!(amount>0)){err.textContent=t('f.amountErr');f.elements.amount.focus();return}
   const old=f.dataset.id?D.payments.find(x=>x.id===f.dataset.id):null;
-  const rec={id:old?old.id:'n'+crypto.randomUUID(),ts:(f.elements.date.value||dstr(new Date()))+' 12:00',sup:f.elements.sup.value,amount,method:f.elements['method'].value,note:f.elements.note.value.trim()};
+  if(!requireRecordDate(f,err))return;
+  const rec={id:old?old.id:'n'+crypto.randomUUID(),ts:f.elements.date.value+' '+(old?old.ts.slice(11):'12:00'),sup:f.elements.sup.value,amount,method:f.elements['method'].value,note:f.elements.note.value.trim()};
   if(old)Object.assign(old,rec);else D.payments.push(rec);
   addLog(old?'edit':'add',`${SUP[rec.sup].name}, ${money(rec.amount)}`);
   save();closeSheet();refresh();toast(t('f.saved'));queuePush();
@@ -2417,8 +2429,8 @@ async function cloudSync(){
   // Pending edits made during a request stay visible and keep the old version
   // so a concurrent remote edit results in a server conflict.
   cloudBase=next;
-  for(const kind of CLOUD_KEYS){const rows=new Map(remote.filter(x=>x.kind===kind&&!x.deleted).map(x=>[x.id,x.payload]));
-   for(const p of Object.values(cloudPending))if(p.kind===kind){if(p.deleted)rows.delete(p.id);else rows.set(p.id,p.payload)}
+  for(const kind of CLOUD_KEYS){const rows=new Map(remote.filter(x=>x.kind===kind&&!x.deleted).map(x=>[x.id,copy(x.payload)]));
+   for(const p of Object.values(cloudPending))if(p.kind===kind){if(p.deleted)rows.delete(p.id);else rows.set(p.id,copy(p.payload))}
    D[kind]=[...rows.values()];
   }
   rebuildCatalog();cloudStore();setSync('ok');
