@@ -2495,7 +2495,7 @@ function renderSettings(){
  ${cloudConflict?'<button class="btn danger" data-cloud="acceptServer">Сохранить локальную копию и принять данные сервера</button>':''}</section>
  <section class="card cloud-card cloud-wide"><h2>Резервные копии и перенос</h2><div class="btnrow"><button class="btn" data-cloud="backup">Скачать резервную копию JSON</button><button class="btn" data-cloud="legacyBackup">Скачать старую локальную историю</button></div>
  ${company.role==='owner'?'<div class="btnrow"><button class="btn" data-cloud="legacyImport">Перенести старую историю этого браузера</button><button class="btn" data-cloud="googleImport">Загрузить историю из Google Таблицы</button></div><label class="fld">Импорт резервной копии JSON<input id="cloudImport" type="file" accept=".json,application/json"></label>':''}
- <div class="cloud-csv"><h3>Таблицы CSV</h3><label class="fld"><span>Тип данных</span><select id="csvKind">${Object.entries(CSV_NAMES).map(([key,name])=>`<option value="${key}">${name}</option>`).join('')}</select></label><div class="cloud-controls"><button class="btn" data-cloud="csvTemplate">Скачать шаблон CSV</button><button class="btn" data-cloud="csvExport">Выгрузить данные CSV</button></div>${company.role==='owner'?'<label class="fld"><span>Загрузить заполненный CSV</span><input id="csvImport" type="file" accept=".csv,text/csv"></label>':''}<p class="hintp">Выберите тип данных, скачайте шаблон, заполните строки под заголовком и загрузите CSV. Порядок: группы → поставщики → материалы → поставки и оплаты. ID для связей можно посмотреть в выгрузке. Единицы: м³, т, кг, лист, л, шт, м, м², мешок, упак., рулон. Дата: ДД.ММ.ГГГГ. Сохраняйте как CSV UTF-8.</p></div>
+ <div class="cloud-csv"><h3>Таблицы CSV</h3><label class="fld"><span>Тип данных</span><select id="csvKind">${Object.entries(CSV_NAMES).map(([key,name])=>`<option value="${key}">${name}</option>`).join('')}</select></label><div class="cloud-controls"><button class="btn" data-cloud="csvTemplate">Скачать шаблон CSV</button><button class="btn" data-cloud="csvExport">Выгрузить данные CSV</button></div>${company.role==='owner'?'<label class="fld"><span>Загрузить заполненный CSV</span><input id="csvImport" type="file" accept=".csv,text/csv"></label>':''}<p class="hintp">Выберите тип данных, скачайте шаблон, заполните строки под заголовком и загрузите CSV. Порядок: группы → поставщики → материалы → поставки и оплаты. Поставщика, материал и группу указывайте по названию. Старые CSV с ID также принимаются. Единицы: м³, т, кг, лист, л, шт, м, м², мешок, упак., рулон. Дата: ДД.ММ.ГГГГ. Сохраняйте как CSV UTF-8.</p></div>
  <p class="hintp">Импорт добавляет отсутствующие ID. Совпадающие ID не заменяются. Перед импортом автоматически скачивается копия.</p></section>
 <section class="card"><h2 class="h2">${t('st.brand')}</h2>
         <label class="fld"><span>${t('st.brandName')}</span><input id="bName" maxlength="32" value="${esc(b.name)}" placeholder="СНАБ" autocomplete="off"></label>
@@ -2516,16 +2516,45 @@ function renderSettings(){
  <section class="card" id="colorsCard">${colorsHTML()}</section> ${context.admin?'<section class="card cloud-card"><h2>Администратор платформы</h2><button class="btn" data-cloud="admin">Компании и подписки</button><div id="adminOut"></div></section>':''}
 </div></div>`;
 }
-const CSV_SCHEMAS={
+const CSV_LEGACY_SCHEMAS={
  groups:[['ID','id'],['Название','name'],['Цвет','color']],
  supps:[['ID','id'],['Название','name'],['Группа ID','g'],['Телефон','phone']],
  mats:[['ID','id'],['Поставщик ID','sup'],['Название RU','ru'],['Название KZ','kz'],['Группа ID','g'],['Единица','unit'],['Цена','price']],
  deliveries:[['ID','id'],['Дата','ts'],['Поставщик ID','sup'],['Материал ID','mat'],['Количество','qty'],['Цена','price'],['Примечание','note']],
  payments:[['ID','id'],['Дата','ts'],['Поставщик ID','sup'],['Сумма','amount'],['Способ','method'],['Примечание','note']]
 };
+const CSV_SCHEMAS={
+ groups:[['Название','name'],['Цвет','color']],
+ supps:[['Название','name'],['Группа','g'],['Телефон','phone']],
+ mats:[['Поставщик','sup'],['Название RU','ru'],['Название KZ','kz'],['Группа','g'],['Единица','unit'],['Цена','price']],
+ deliveries:[['Дата','ts'],['Поставщик','sup'],['Материал','mat'],['Количество','qty'],['Цена','price'],['Примечание','note']],
+ payments:[['Дата','ts'],['Поставщик','sup'],['Сумма','amount'],['Способ','method'],['Примечание','note']]
+};
+const csvNameKey=value=>String(value||'').trim().replace(/\s+/g,' ').toLocaleLowerCase();
+function csvNamed(rows,value,label,names){
+ const key=csvNameKey(value),matches=rows.filter(row=>names(row).some(name=>csvNameKey(name)===key));
+ if(matches.length>1)throw Error('Неоднозначное название: '+label+' «'+value+'». Найдено несколько записей. Используйте старый формат CSV с ID для уточнения.');
+ return matches[0]||null;
+}
+function csvGroupRows(){return BASE_GROUPS.map(id=>({id,name:I18N.ru['g.'+id],kz:I18N.kz['g.'+id]})).concat(D.groups)}
+function csvReadable(key,row){
+ if(key==='sup'){const sup=D.supps.find(x=>x.id===row.sup);if(!sup)throw Error('Не найден поставщик для выгрузки');return sup.name}
+ if(key==='mat'){const mat=D.mats.find(x=>x.id===row.mat);if(!mat)throw Error('Не найден материал для выгрузки');return mname(mat)}
+ if(key==='g')return gname(row.g);
+ if(key==='unit')return unitOf(row);
+ if(key==='method')return row.method==='cash'?(P.lang==='kz'?'Қолма-қол':'Наличные'):(P.lang==='kz'?'Аударым':'Перевод');
+ if(key==='ts'){const m=/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2})/.exec(row.ts||'');if(!m)throw Error('Некорректная дата для выгрузки');return m[3]+'.'+m[2]+'.'+m[1]+' '+m[4]}
+ return row[key];
+}
+function csvExistingId(kind,row,used){
+ if(kind==='groups')return csvNamed(D.groups,row.name,'группа',x=>[x.name])?.id;
+ if(kind==='supps')return csvNamed(D.supps,row.name,'поставщик',x=>[x.name])?.id;
+ if(kind==='mats')return csvNamed(D.mats.filter(x=>x.sup===row.sup),row.ru,'материал',x=>[x.ru,x.kz])?.id;
+ const keys=CSV_SCHEMAS[kind].map(x=>x[1]);return D[kind].find(x=>!used.has(x.id)&&keys.every(key=>String(x[key]??'')===String(row[key]??'')))?.id;
+}
 const CSV_NAMES={groups:'Группы',supps:'Поставщики',mats:'Материалы',deliveries:'Поставки',payments:'Оплаты'};
 function csvEscape(value){const s=String(value??'');return /[;",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
-function csvDocument(kind,rows=[]){return '\uFEFF'+[CSV_SCHEMAS[kind].map(x=>x[0]).join(';'),...rows.map(r=>CSV_SCHEMAS[kind].map(([label,key])=>csvEscape(key==='unit'?unitOf(r):r[key])).join(';'))].join('\r\n')+'\r\n'}
+function csvDocument(kind,rows=[]){return '\uFEFF'+[CSV_SCHEMAS[kind].map(x=>x[0]).join(';'),...rows.map(r=>CSV_SCHEMAS[kind].map(([label,key])=>csvEscape(csvReadable(key,r))).join(';'))].join('\r\n')+'\r\n'}
 function downloadCSV(kind,template){
  const data=csvDocument(kind,template?[]:D[kind]);const a=document.createElement('a'),url=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='snab-'+kind+(template?'-template':'')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
@@ -2551,14 +2580,19 @@ function csvDate(v){
  return x[1]+'-'+x[2]+'-'+x[3]+' '+(x[4]||'12')+':'+(x[5]||'00');
 }
 function csvData(kind,text){
- const schema=CSV_SCHEMAS[kind];if(!schema)throw Error('Выберите тип данных');const table=parseCSV(text);if(table.length<2)throw Error('Заполните строки под заголовком');
- const headers=table[0].map(x=>x.trim());if(headers.length!==schema.length||new Set(headers).size!==headers.length||schema.some(([name])=>!headers.includes(name)))throw Error('Столбцы не соответствуют шаблону «'+CSV_NAMES[kind]+'»');
+ let schema=CSV_SCHEMAS[kind];if(!schema)throw Error('Выберите тип данных');const table=parseCSV(text);if(table.length<2)throw Error('Заполните строки под заголовком');
+ const headers=table[0].map(x=>x.trim());const legacy=headers.includes('ID');if(legacy)schema=CSV_LEGACY_SCHEMAS[kind];if(headers.length!==schema.length||new Set(headers).size!==headers.length||schema.some(([name])=>!headers.includes(name)))throw Error('Столбцы не соответствуют шаблону «'+CSV_NAMES[kind]+'»');
  const result=[];const ids=new Set();
  for(let i=1;i<table.length;i++){
   try{
    const line=table[i];if(line.length!==headers.length)throw Error('Неверное количество столбцов');const x={};for(const [label,key] of schema)x[key]=String(line[headers.indexOf(label)]).trim();
-   x.id=x.id||'csv-'+crypto.randomUUID();if(ids.has(x.id))throw Error('Повторный ID '+x.id);ids.add(x.id);
+   if(legacy){x.id=x.id||'csv-'+crypto.randomUUID();if(ids.has(x.id))throw Error('Повторный ID '+x.id);ids.add(x.id)}
    const need=k=>{if(!x[k])throw Error('Не заполнено '+schema.find(y=>y[1]===k)[0])};
+   if(!legacy){
+    if(['supps','mats'].includes(kind)){const group=x.g?csvNamed(csvGroupRows(),x.g,'группа',row=>[row.name,row.kz]):{id:'raw'};if(!group)throw Error('Группа не найдена: '+x.g);x.g=group.id}
+    if(['mats','deliveries','payments'].includes(kind)){need('sup');const supplier=csvNamed(D.supps,x.sup,'поставщик',row=>[row.name]);if(!supplier)throw Error('Поставщик не найден: '+x.sup);x.sup=supplier.id}
+    if(kind==='deliveries'){need('mat');const material=csvNamed(D.mats.filter(row=>row.sup===x.sup),x.mat,'материал',row=>[row.ru,row.kz]);if(!material)throw Error('Материал не найден у выбранного поставщика: '+x.mat);x.mat=material.id}
+   }
    if(kind==='groups'){need('name');x.color=x.color||'#8a8a93';if(!isHex(x.color))throw Error('Цвет должен быть вида #8a8a93')}
    if(['supps','mats'].includes(kind)){x.g=x.g||'raw';if(!BASE_GROUPS.includes(x.g)&&!D.groups.some(g=>g.id===x.g))throw Error('Группа ID отсутствует: '+x.g)}
    if(kind==='supps'){need('name');x.demo=false}
@@ -2567,6 +2601,12 @@ function csvData(kind,text){
    if(['deliveries','payments'].includes(kind))x.ts=csvDate(x.ts);
    if(kind==='deliveries'){need('mat');const mat=D.mats.find(m=>m.id===x.mat);if(!mat)throw Error('Материал ID отсутствует: '+x.mat);if(mat.sup!==x.sup)throw Error('Материал принадлежит другому поставщику');x.qty=csvNumber(x.qty,'Количество');if(x.qty<=0)throw Error('Количество должно быть больше нуля');x.price=csvNumber(x.price,'Цена')}
    if(kind==='payments'){x.amount=csvNumber(x.amount,'Сумма');if(x.amount<=0)throw Error('Сумма должна быть больше нуля');const methods={cash:'cash','наличные':'cash','қолма-қол':'cash',transfer:'transfer','перевод':'transfer','аударым':'transfer'};x.method=methods[x.method.toLowerCase()];if(!x.method)throw Error('Способ: наличные или перевод')}
+   if(!legacy){
+    x.id=csvExistingId(kind,x,ids)||'csv-'+crypto.randomUUID();
+    if(ids.has(x.id))throw Error('Повторная запись: '+(x.name||x.ru||x.id));
+    if(['groups','supps','mats'].includes(kind)&&result.some(row=>csvNameKey(row.name||row.ru)===csvNameKey(x.name||x.ru)&&(kind!=='mats'||row.sup===x.sup)))throw Error('Повторное название в файле: '+(x.name||x.ru));
+    ids.add(x.id);
+   }
    result.push(x);
   }catch(e){throw Error('Строка '+(i+1)+': '+e.message)}
  }
