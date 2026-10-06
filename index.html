@@ -2394,7 +2394,28 @@ function stageChanges(){
  }
  cloudStore();
 }
-async function rpc(name,args={}){const {data,error}=await sb.rpc(name,args);if(error)throw Error(error.message);return data}
+function expiredAccess(error){return /jwt.*(expired|invalid)|token.*expired/i.test(error?.message||'')||['PGRST301','PGRST303'].includes(error?.code)}
+function invalidSession(error){return ['refresh_token_not_found','refresh_token_already_used','refresh_token_expired','session_not_found','user_banned','invalid_grant'].includes(error?.code)||/invalid refresh token|refresh token.*(not found|expired|already used)|auth session missing/i.test(error?.message||'')}
+function sessionError(error){return Object.assign(new Error(error?.message||'Ошибка подключения'),{code:error?.code,status:error?.status})}
+function showSessionLogin(){
+ cloudStore();cloudReady=false;S.unlocked=false;cloudUser=null;company=null;context=null;cloudMode='login';
+ closeSheet();$('#app').hidden=true;$('#lock').hidden=false;cloudAuthMessage=P.lang==='kz'?'Сессия аяқталды. Қайта кіріңіз. Жіберілмеген өзгерістер сақталды.':'Сессия истекла. Войдите снова. Неотправленные изменения сохранены.';renderLock();
+}
+let tokenRefreshFlight=null;
+async function renewSession(){
+ if(!tokenRefreshFlight)tokenRefreshFlight=(async()=>{
+  const {data,error}=await sb.auth.refreshSession();
+  if(error){if(invalidSession(error)){try{await sb.auth.signOut({scope:'local'})}catch{}showSessionLogin()}throw sessionError(error)}
+  if(!data?.session){showSessionLogin();throw sessionError({code:'session_not_found',message:'Сессия истекла. Войдите снова.'})}
+  cloudUser=data.session.user;return data.session;
+ })().finally(()=>tokenRefreshFlight=null);
+ return tokenRefreshFlight;
+}
+async function rpc(name,args={}){
+ let result=await sb.rpc(name,args);
+ if(result.error&&expiredAccess(result.error)){await renewSession();result=await sb.rpc(name,args)}
+ if(result.error)throw sessionError(result.error);return result.data;
+}
 function renderLock(){
  if(cloudUser&&context&&!context.companies.length&&cloudMode!=='recover'){renderCompanyWelcome();return}
  const signup=cloudMode==='signup',reset=cloudMode==='reset',recover=cloudMode==='recover';
@@ -2632,10 +2653,10 @@ async function cloudBoot(){
   if(!window.supabase)throw Error(authText('sdkError'));
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:(url,options={})=>fetch(url,{...options,signal:options.signal||AbortSignal.timeout(20000)})}});
   const recovery=location.hash.includes('type=recovery');
-  sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){cloudMode='recover';$('#lock').hidden=false;$('#app').hidden=true;renderLock()}else if(event==='SIGNED_OUT'&&!cloudStarting){cloudReady=false;S.unlocked=false;$('#app').hidden=true;$('#lock').hidden=false;renderLock()}});
+  sb.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){cloudMode='recover';$('#lock').hidden=false;$('#app').hidden=true;renderLock()}else if(event==='SIGNED_OUT'&&!cloudStarting){showSessionLogin()}});
   const {data,error}=await sb.auth.getSession();if(error)throw error;
   if(data.session){cloudUser=data.session.user;if(recovery){cloudMode='recover';renderLock()}else await showCompanies()}else renderLock();
- }catch(e){renderBootState(String(e.message||e))}finally{cloudStarting=false}
+ }catch(e){if(invalidSession(e))showSessionLogin();else renderBootState(String(e.message||e))}finally{cloudStarting=false}
  setInterval(()=>{if(cloudReady&&!document.hidden)cloudSync()},10000);
  window.addEventListener('online',cloudSync);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloudSync()});
